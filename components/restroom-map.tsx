@@ -315,6 +315,13 @@ export function RestroomMap() {
           cursor: default;
         `
 
+        // 팝업 내부 클릭/터치 시 지도로 이벤트가 전파되어 팝업이 닫히지 않도록 방지
+        const stopPropagation = (e: Event) => e.stopPropagation()
+        container.addEventListener('click', stopPropagation)
+        container.addEventListener('mousedown', stopPropagation)
+        container.addEventListener('touchstart', stopPropagation, { passive: true })
+        container.addEventListener('pointerdown', stopPropagation)
+
         // 건물/화장실 이름
         const titleDiv = document.createElement('div')
         titleDiv.style.cssText = 'font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
