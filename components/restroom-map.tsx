@@ -562,7 +562,7 @@ export function RestroomMap() {
         <div className="rounded-xl bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
           <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
           <p className="text-xs text-muted-foreground">
-            가까운 {selectedGender === 'male' ? '남성' : '여성'} 화장실 {nearby200mRestrooms.length}곳 (반경 200m)
+            가까운 화장실 {nearby200mRestrooms.length}곳 (반경 200m)
           </p>
         </div>
 

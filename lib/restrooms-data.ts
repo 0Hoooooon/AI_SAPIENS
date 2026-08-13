@@ -70,4 +70,12 @@ export const restrooms: Restroom[] = [
     gender: 'female',
     floors: [{ floor: '6층', bidet: false }],
   },
+  {
+    id: 6,
+    name: '공학실습동(남)',
+    latitude: 37.29322581440059,
+    longitude: 126.97793471650336,
+    gender: 'male',
+    floors: [{ floor: '1층', bidet: false }],
+  },
 ]
