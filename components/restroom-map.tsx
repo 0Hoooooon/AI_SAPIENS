@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Building2, Check, Menu, Navigation, Send, X } from 'lucide-react'
+import { Building2, Check, Loader2, Menu, Navigation, Send, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -276,7 +276,7 @@ export function RestroomMap() {
     } else {
       const singleFloorSpan = document.createElement('span')
       singleFloorSpan.style.cssText = 'font-weight: 500;'
-      singleFloorSpan.textContent = `🏢 ${restroom.floors[0].floor}`
+      singleFloorSpan.textContent = restroom.floors[0].floor
       rowDiv.appendChild(singleFloorSpan)
     }
 
@@ -682,8 +682,14 @@ export function RestroomMap() {
                   className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
                   autoComplete="off"
                 />
-                <Button type="submit" size="icon-lg" className="size-11 rounded-xl" aria-label="메시지 전송">
-                  <Send />
+                <Button
+                  type="submit"
+                  size="icon-lg"
+                  disabled={isSearching}
+                  className="size-11 rounded-xl"
+                  aria-label="메시지 전송"
+                >
+                  {isSearching ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : <Send />}
                 </Button>
               </Field>
             </FieldGroup>
