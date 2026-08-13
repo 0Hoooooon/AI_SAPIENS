@@ -9,8 +9,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
+    let apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey || !apiKey.trim()) {
       return NextResponse.json(
         {
           error: 'GEMINI_API_KEY가 설정되지 않았습니다.',
@@ -19,6 +19,9 @@ export async function POST(req: Request) {
         { status: 200 },
       )
     }
+
+    // 따옴표 및 공백 제거
+    apiKey = apiKey.trim().replace(/^["']|["']$/g, '')
 
     const filteredRestrooms = restrooms.filter((r) => r.gender === selectedGender)
 
@@ -44,8 +47,9 @@ ${userLocation ? `- 사용자 GPS 좌표: 위도 ${userLocation.latitude}, 경�
 }
 `
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    // gemini-1.5-flash 모델 시도 (가장 안정적)
+    let response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,13 +68,44 @@ ${userLocation ? `- 사용자 GPS 좌표: 위도 ${userLocation.latitude}, 경�
       },
     )
 
+    // 만약 1.5가 안 될 경우 2.0-flash로 폴백
+    if (!response.ok) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: promptText }],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.2,
+            },
+          }),
+        },
+      )
+    }
+
     if (!response.ok) {
       const errText = await response.text()
-      console.error('Gemini API Error:', errText)
+      console.error('Gemini API Error:', response.status, errText)
+
+      let detailMsg = 'API 키가 올바르지 않거나 구글 AI 서비스 응답 오류입니다.'
+      if (errText.includes('API_KEY_INVALID')) {
+        detailMsg = 'API 키가 유효하지 않습니다. Google AI Studio에서 올바른 키를 확인해 주세요.'
+      } else if (errText.includes('quota') || errText.includes('RESOURCE_EXHAUSTED')) {
+        detailMsg = 'Gemini API 호출 한도(Quota)를 초과했습니다.'
+      }
+
       return NextResponse.json(
         {
-          error: 'Gemini API 호출 오류',
-          reply: 'Gemini API 연동 처리 중 오류가 발생했습니다. API 키 및 네트워크 상태를 확인해 주세요.',
+          error: 'Gemini API 오류',
+          reply: `Gemini API 오류: ${detailMsg}`,
         },
         { status: 200 },
       )
