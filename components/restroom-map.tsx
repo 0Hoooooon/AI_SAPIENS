@@ -246,7 +246,7 @@ export function RestroomMap() {
         const content = `
           <div style="
             position: relative;
-            bottom: 12px;
+            bottom: 36px;
             padding: 8px 12px;
             background: #ffffff;
             border: 1px solid rgba(0, 0, 0, 0.12);
