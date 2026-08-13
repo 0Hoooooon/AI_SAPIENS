@@ -135,6 +135,7 @@ export function RestroomMap() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null)
 
   const kakaoMapsRef = useRef<KakaoMaps | null>(null)
   const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
@@ -143,6 +144,7 @@ export function RestroomMap() {
   const userLocationOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
 
   const showUserLocationOnMap = (lat: number, lng: number) => {
+    setUserCoords({ latitude: lat, longitude: lng })
     const maps = kakaoMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
@@ -528,7 +530,12 @@ export function RestroomMap() {
     openOverlayForRestroom(restroom)
   }
 
+  const refCoords = userCoords ?? CAMPUS_CENTER
   const filteredRestrooms = restrooms.filter((restroom) => restroom.gender === selectedGender)
+  const nearby200mRestrooms = filteredRestrooms.filter(
+    (restroom) =>
+      getDistanceInMeters(refCoords.latitude, refCoords.longitude, restroom.latitude, restroom.longitude) <= 200,
+  )
 
   return (
     <main className="relative isolate min-h-dvh overflow-hidden bg-muted font-sans">
@@ -555,24 +562,11 @@ export function RestroomMap() {
         <div className="rounded-xl bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
           <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
           <p className="text-xs text-muted-foreground">
-            가까운 {selectedGender === 'male' ? '남성' : '여성'} 화장실 {filteredRestrooms.length}곳
+            가까운 {selectedGender === 'male' ? '남성' : '여성'} 화장실 {nearby200mRestrooms.length}곳 (반경 200m)
           </p>
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
-          {/* 현위치 빨간 점 표시 버튼 */}
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-lg"
-            onClick={handleGetCurrentLocation}
-            className="pointer-events-auto bg-background/95 shadow-md backdrop-blur-sm active:scale-95"
-            aria-label="내 현위치 표시"
-            title="내 현위치 표시"
-          >
-            <Navigation className="size-4 fill-rose-500 text-rose-500" />
-          </Button>
-
           {/* 남 / 여 선택 스위치 */}
           <div
             className="flex items-center rounded-xl border bg-background/95 p-1 shadow-md backdrop-blur-sm"
@@ -660,29 +654,42 @@ export function RestroomMap() {
         </div>
       </header>
 
-      <form
-        onSubmit={handleSubmit}
-        className="fixed inset-x-0 bottom-0 z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-      >
-        <FieldGroup className="mx-auto max-w-xl rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur-md">
-          <Field orientation="horizontal" className="gap-2">
-            <label htmlFor="chat-message" className="sr-only">
-              챗봇에게 화장실 질문하기
-            </label>
-            <Input
-              id="chat-message"
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder="예: 비데 있는 가장 가까운 곳은?"
-              className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
-              autoComplete="off"
-            />
-            <Button type="submit" size="icon-lg" className="size-11 rounded-xl" aria-label="메시지 전송">
-              <Send />
-            </Button>
-          </Field>
-        </FieldGroup>
-      </form>
+      {/* 우측 하단 전송 버튼 위쪽에 위치한 현위치 버튼 & 채팅 전송 입력 바 */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-xl flex-col items-end gap-2">
+          {/* 진한 그레이 바탕의 현위치 버튼 */}
+          <button
+            type="button"
+            onClick={handleGetCurrentLocation}
+            className="pointer-events-auto flex size-11 items-center justify-center rounded-2xl bg-slate-700/90 text-white shadow-lg backdrop-blur-md transition-all hover:bg-slate-800 active:scale-95"
+            aria-label="내 현위치 표시"
+            title="내 현위치 표시"
+          >
+            <Navigation className="size-5 fill-white text-white" />
+          </button>
+
+          <form onSubmit={handleSubmit} className="pointer-events-auto w-full">
+            <FieldGroup className="rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur-md">
+              <Field orientation="horizontal" className="gap-2">
+                <label htmlFor="chat-message" className="sr-only">
+                  챗봇에게 화장실 질문하기
+                </label>
+                <Input
+                  id="chat-message"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="예: 비데 있는 가장 가까운 곳은?"
+                  className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
+                  autoComplete="off"
+                />
+                <Button type="submit" size="icon-lg" className="size-11 rounded-xl" aria-label="메시지 전송">
+                  <Send />
+                </Button>
+              </Field>
+            </FieldGroup>
+          </form>
+        </div>
+      </div>
     </main>
   )
 }
