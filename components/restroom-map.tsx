@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Building2, Check, Menu, Send, X } from 'lucide-react'
+import { Building2, Check, Menu, Navigation, Send, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -228,6 +228,60 @@ export function RestroomMap() {
   const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
   const markersRef = useRef<KakaoMarkerInstance[]>([])
   const currentOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
+  const userLocationOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
+
+  const showUserLocationOnMap = (lat: number, lng: number) => {
+    const maps = kakaoMapsRef.current
+    const map = mapInstanceRef.current
+    if (!maps || !map) return
+
+    // 기존 현위치 빨간 점 마커 제거
+    if (userLocationOverlayRef.current) {
+      userLocationOverlayRef.current.setMap(null)
+      userLocationOverlayRef.current = null
+    }
+
+    const userDotElement = document.createElement('div')
+    userDotElement.style.cssText = `
+      position: relative;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `
+
+    userDotElement.innerHTML = `
+      <div style="
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.3);
+        border: 1.5px solid rgba(239, 68, 68, 0.6);
+      "></div>
+      <div style="
+        position: relative;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ef4444;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
+      "></div>
+    `
+
+    const userOverlay = new maps.CustomOverlay({
+      map,
+      position: new maps.LatLng(lat, lng),
+      content: userDotElement,
+      xAnchor: 0.5,
+      yAnchor: 0.5,
+      zIndex: 4,
+    })
+
+    userLocationOverlayRef.current = userOverlay
+  }
 
   const openOverlayForRestroom = (restroom: Restroom) => {
     const maps = kakaoMapsRef.current
@@ -419,6 +473,10 @@ export function RestroomMap() {
         currentOverlayRef.current.setMap(null)
         currentOverlayRef.current = null
       }
+      if (userLocationOverlayRef.current) {
+        userLocationOverlayRef.current.setMap(null)
+        userLocationOverlayRef.current = null
+      }
       markersRef.current.forEach((marker) => marker.setMap(null))
       markersRef.current = []
     }
@@ -458,6 +516,37 @@ export function RestroomMap() {
       return marker
     })
   }, [selectedGender, isMapReady])
+
+  const handleGetCurrentLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setToastMessage('이 브라우저에서는 위치 서비스를 지원하지 않습니다.')
+      setTimeout(() => setToastMessage(null), 3000)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        const maps = kakaoMapsRef.current
+        const map = mapInstanceRef.current
+
+        showUserLocationOnMap(lat, lng)
+
+        if (maps && map) {
+          map.setCenter(new maps.LatLng(lat, lng))
+        }
+
+        setToastMessage('현재 위치(빨간 점)로 이동했습니다!')
+        setTimeout(() => setToastMessage(null), 3500)
+      },
+      () => {
+        setToastMessage('위치 권한 허용이 필요합니다.')
+        setTimeout(() => setToastMessage(null), 3500)
+      },
+      { enableHighAccuracy: true, timeout: 5000 },
+    )
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -508,6 +597,7 @@ export function RestroomMap() {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          showUserLocationOnMap(position.coords.latitude, position.coords.longitude)
           findAndShowClosest(position.coords.latitude, position.coords.longitude)
         },
         () => {
@@ -558,6 +648,19 @@ export function RestroomMap() {
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* 현위치 빨간 점 표시 버튼 */}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            onClick={handleGetCurrentLocation}
+            className="pointer-events-auto bg-background/95 shadow-md backdrop-blur-sm active:scale-95"
+            aria-label="내 현위치 표시"
+            title="내 현위치 표시"
+          >
+            <Navigation className="size-4 fill-rose-500 text-rose-500" />
+          </Button>
+
           {/* 남 / 여 선택 스위치 */}
           <div
             className="flex items-center rounded-xl border bg-background/95 p-1 shadow-md backdrop-blur-sm"
