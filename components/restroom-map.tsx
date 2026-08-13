@@ -198,6 +198,22 @@ function loadKakaoMaps(appKey: string) {
   })
 }
 
+// 하버사인(Haversine) 공식으로 두 위경도 좌표 간 거리(미터) 계산
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3
+  const φ1 = (lat1 * Math.PI) / 180
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return R * c
+}
+
 export function RestroomMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const [message, setMessage] = useState('')
@@ -205,6 +221,8 @@ export function RestroomMap() {
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('male')
   const [isMapReady, setIsMapReady] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const kakaoMapsRef = useRef<KakaoMaps | null>(null)
   const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
@@ -443,8 +461,64 @@ export function RestroomMap() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!message.trim()) return
-    setMessage('')
+    const trimmed = message.trim()
+    if (!trimmed) return
+
+    setIsSearching(true)
+
+    const findAndShowClosest = (userLat: number, userLng: number) => {
+      let candidateList = restrooms.filter((r) => r.gender === selectedGender)
+
+      // '비데' 키워드가 포함되어 있으면 비데가 있는 화장실만 탐색
+      if (trimmed.includes('비데')) {
+        const bidetList = candidateList.filter((r) => r.floors.some((f) => f.bidet))
+        if (bidetList.length > 0) {
+          candidateList = bidetList
+        }
+      }
+
+      if (candidateList.length === 0) {
+        setToastMessage('조건에 맞는 화장실을 찾지 못했습니다.')
+        setIsSearching(false)
+        return
+      }
+
+      // 현위치 기준 가장 가까운 화장실 계산
+      let closest = candidateList[0]
+      let minDistance = getDistanceInMeters(userLat, userLng, closest.latitude, closest.longitude)
+
+      for (let i = 1; i < candidateList.length; i++) {
+        const dist = getDistanceInMeters(userLat, userLng, candidateList[i].latitude, candidateList[i].longitude)
+        if (dist < minDistance) {
+          minDistance = dist
+          closest = candidateList[i]
+        }
+      }
+
+      openOverlayForRestroom(closest)
+      setMessage('')
+      setIsSearching(false)
+
+      const distText = minDistance > 1000 ? `${(minDistance / 1000).toFixed(1)}km` : `${Math.round(minDistance)}m`
+      setToastMessage(`가장 가까운 ${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
+
+      setTimeout(() => setToastMessage(null), 4500)
+    }
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          findAndShowClosest(position.coords.latitude, position.coords.longitude)
+        },
+        () => {
+          // GPS 권한 거부 또는 획득 실패 시 캠퍼스 중심점 기준으로 계산
+          findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
+        },
+        { enableHighAccuracy: true, timeout: 5000 },
+      )
+    } else {
+      findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
+    }
   }
 
   const handleSelectRestroomFromSheet = (restroom: Restroom) => {
@@ -463,6 +537,14 @@ export function RestroomMap() {
           <div className="max-w-sm rounded-2xl border bg-background p-5 text-center shadow-lg">
             <p className="font-semibold text-foreground">지도를 불러올 수 없어요</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{mapError}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {toastMessage ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
+          <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl bg-slate-900/90 px-4 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-md">
+            📍 {toastMessage}
           </div>
         </div>
       ) : null}
