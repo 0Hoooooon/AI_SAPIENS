@@ -100,6 +100,17 @@ const restrooms: Restroom[] = [
     gender: 'female',
     floors: [{ floor: '2층', bidet: true }],
   },
+  {
+    id: 7,
+    name: '학생회관(남)',
+    latitude: 37.29436022567817,
+    longitude: 126.97356129956843,
+    gender: 'male',
+    floors: [
+      { floor: '1층', bidet: false },
+      { floor: '3층', bidet: true },
+    ],
+  },
 ]
 
 type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
