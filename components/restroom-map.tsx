@@ -193,11 +193,139 @@ export function RestroomMap() {
   const [mapError, setMapError] = useState<string | null>(null)
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('male')
   const [isMapReady, setIsMapReady] = useState(false)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const kakaoMapsRef = useRef<KakaoMaps | null>(null)
   const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
   const markersRef = useRef<KakaoMarkerInstance[]>([])
   const currentOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
+
+  const openOverlayForRestroom = (restroom: Restroom) => {
+    const maps = kakaoMapsRef.current
+    const map = mapInstanceRef.current
+    if (!maps || !map) return
+
+    // 열려있는 팝업 제거
+    if (currentOverlayRef.current) {
+      currentOverlayRef.current.setMap(null)
+      currentOverlayRef.current = null
+    }
+
+    // 지도 중심을 선택한 화장실 위치로 이동
+    const position = new maps.LatLng(restroom.latitude, restroom.longitude)
+    map.setCenter(position)
+
+    const initialFloor = restroom.floors[0]
+
+    const container = document.createElement('div')
+    container.style.cssText = `
+      position: relative;
+      bottom: 36px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      font-family: system-ui, -apple-system, sans-serif;
+      white-space: nowrap;
+      cursor: default;
+    `
+
+    // 팝업 내부 클릭/터치 시 지도로 이벤트가 전파되어 팝업이 닫히지 않도록 방지
+    const stopPropagation = (e: Event) => e.stopPropagation()
+    container.addEventListener('click', stopPropagation)
+    container.addEventListener('mousedown', stopPropagation)
+    container.addEventListener('touchstart', stopPropagation, { passive: true })
+    container.addEventListener('pointerdown', stopPropagation)
+
+    // 건물/화장실 이름
+    const titleDiv = document.createElement('div')
+    titleDiv.style.cssText = 'font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
+    titleDiv.textContent = restroom.name
+    container.appendChild(titleDiv)
+
+    // 세부 정보 행
+    const rowDiv = document.createElement('div')
+    rowDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569;'
+
+    // 층선택 (다중 층일 때 드롭다운 표시)
+    if (restroom.floors.length > 1) {
+      const select = document.createElement('select')
+      select.style.cssText = `
+        padding: 3px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #0f172a;
+        background-color: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        outline: none;
+        cursor: pointer;
+      `
+      restroom.floors.forEach((f) => {
+        const opt = document.createElement('option')
+        opt.value = f.floor
+        opt.textContent = f.floor
+        select.appendChild(opt)
+      })
+
+      select.addEventListener('change', (e) => {
+        const selectedVal = (e.target as HTMLSelectElement).value
+        const targetFloor = restroom.floors.find((f) => f.floor === selectedVal) ?? restroom.floors[0]
+        updateBidetBadge(targetFloor.bidet)
+      })
+
+      rowDiv.appendChild(select)
+    } else {
+      const singleFloorSpan = document.createElement('span')
+      singleFloorSpan.style.cssText = 'font-weight: 500;'
+      singleFloorSpan.textContent = `🏢 ${restroom.floors[0].floor}`
+      rowDiv.appendChild(singleFloorSpan)
+    }
+
+    const dotSpan = document.createElement('span')
+    dotSpan.style.color = '#cbd5e1'
+    dotSpan.textContent = '•'
+    rowDiv.appendChild(dotSpan)
+
+    // 비데 유무 표시
+    const bidetSpan = document.createElement('span')
+    const updateBidetBadge = (hasBidet: boolean) => {
+      bidetSpan.innerHTML = hasBidet
+        ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
+        : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
+    }
+    updateBidetBadge(initialFloor.bidet)
+    rowDiv.appendChild(bidetSpan)
+
+    container.appendChild(rowDiv)
+
+    // 말풍선 아래 화살표
+    const tail = document.createElement('div')
+    tail.style.cssText = `
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 8px;
+      height: 8px;
+      background: #ffffff;
+      border-right: 1px solid rgba(0, 0, 0, 0.12);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    `
+    container.appendChild(tail)
+
+    const overlay = new maps.CustomOverlay({
+      map,
+      position,
+      content: container,
+      xAnchor: 0.5,
+      yAnchor: 1.0,
+      zIndex: 3,
+    })
+
+    currentOverlayRef.current = overlay
+  }
 
   useEffect(() => {
     const container = mapContainerRef.current
@@ -293,122 +421,9 @@ export function RestroomMap() {
         title: restroom.name,
       })
 
-      // 핀 클릭 시 바로 위에 층수 드롭다운 및 비데 유무 팝업 표시
+      // 핀 클릭 시 해당 위치로 팝업 표시
       maps.event.addListener(marker, 'click', () => {
-        if (currentOverlayRef.current) {
-          currentOverlayRef.current.setMap(null)
-        }
-
-        const initialFloor = restroom.floors[0]
-
-        const container = document.createElement('div')
-        container.style.cssText = `
-          position: relative;
-          bottom: 36px;
-          padding: 10px 14px;
-          background: #ffffff;
-          border: 1px solid rgba(0, 0, 0, 0.12);
-          border-radius: 12px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-          font-family: system-ui, -apple-system, sans-serif;
-          white-space: nowrap;
-          cursor: default;
-        `
-
-        // 팝업 내부 클릭/터치 시 지도로 이벤트가 전파되어 팝업이 닫히지 않도록 방지
-        const stopPropagation = (e: Event) => e.stopPropagation()
-        container.addEventListener('click', stopPropagation)
-        container.addEventListener('mousedown', stopPropagation)
-        container.addEventListener('touchstart', stopPropagation, { passive: true })
-        container.addEventListener('pointerdown', stopPropagation)
-
-        // 건물/화장실 이름
-        const titleDiv = document.createElement('div')
-        titleDiv.style.cssText = 'font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
-        titleDiv.textContent = restroom.name
-        container.appendChild(titleDiv)
-
-        // 세부 정보 행
-        const rowDiv = document.createElement('div')
-        rowDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569;'
-
-        // 층선택 (다중 층일 때 드롭다운 표시)
-        if (restroom.floors.length > 1) {
-          const select = document.createElement('select')
-          select.style.cssText = `
-            padding: 3px 8px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #0f172a;
-            background-color: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            outline: none;
-            cursor: pointer;
-          `
-          restroom.floors.forEach((f) => {
-            const opt = document.createElement('option')
-            opt.value = f.floor
-            opt.textContent = f.floor
-            select.appendChild(opt)
-          })
-
-          select.addEventListener('change', (e) => {
-            const selectedVal = (e.target as HTMLSelectElement).value
-            const targetFloor = restroom.floors.find((f) => f.floor === selectedVal) ?? restroom.floors[0]
-            updateBidetBadge(targetFloor.bidet)
-          })
-
-          rowDiv.appendChild(select)
-        } else {
-          const singleFloorSpan = document.createElement('span')
-          singleFloorSpan.style.cssText = 'font-weight: 500;'
-          singleFloorSpan.textContent = `🏢 ${restroom.floors[0].floor}`
-          rowDiv.appendChild(singleFloorSpan)
-        }
-
-        const dotSpan = document.createElement('span')
-        dotSpan.style.color = '#cbd5e1'
-        dotSpan.textContent = '•'
-        rowDiv.appendChild(dotSpan)
-
-        // 비데 유무 표시
-        const bidetSpan = document.createElement('span')
-        const updateBidetBadge = (hasBidet: boolean) => {
-          bidetSpan.innerHTML = hasBidet
-            ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
-            : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
-        }
-        updateBidetBadge(initialFloor.bidet)
-        rowDiv.appendChild(bidetSpan)
-
-        container.appendChild(rowDiv)
-
-        // 말풍선 아래 화살표
-        const tail = document.createElement('div')
-        tail.style.cssText = `
-          position: absolute;
-          bottom: -5px;
-          left: 50%;
-          transform: translateX(-50%) rotate(45deg);
-          width: 8px;
-          height: 8px;
-          background: #ffffff;
-          border-right: 1px solid rgba(0, 0, 0, 0.12);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-        `
-        container.appendChild(tail)
-
-        const overlay = new maps.CustomOverlay({
-          map,
-          position: new maps.LatLng(restroom.latitude, restroom.longitude),
-          content: container,
-          xAnchor: 0.5,
-          yAnchor: 1.0,
-          zIndex: 3,
-        })
-
-        currentOverlayRef.current = overlay
+        openOverlayForRestroom(restroom)
       })
 
       return marker
@@ -419,6 +434,11 @@ export function RestroomMap() {
     event.preventDefault()
     if (!message.trim()) return
     setMessage('')
+  }
+
+  const handleSelectRestroomFromSheet = (restroom: Restroom) => {
+    setIsSheetOpen(false)
+    openOverlayForRestroom(restroom)
   }
 
   const filteredRestrooms = restrooms.filter((restroom) => restroom.gender === selectedGender)
@@ -479,7 +499,7 @@ export function RestroomMap() {
             </button>
           </div>
 
-          <Sheet>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger
               render={
                 <Button
@@ -501,7 +521,11 @@ export function RestroomMap() {
               </SheetHeader>
               <div className="flex flex-col gap-3 overflow-y-auto p-4">
                 {filteredRestrooms.map((restroom, index) => (
-                  <article key={restroom.id} className="flex items-start gap-3 rounded-xl border bg-card p-3">
+                  <article
+                    key={restroom.id}
+                    onClick={() => handleSelectRestroomFromSheet(restroom)}
+                    className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-accent/80 active:scale-[0.98]"
+                  >
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                       <Building2 aria-hidden="true" />
                     </div>
