@@ -622,32 +622,50 @@ export function RestroomMap() {
                 <SheetDescription>선택한 성별의 캠퍼스 내 화장실 정보예요.</SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-3 overflow-y-auto p-4">
-                {filteredRestrooms.map((restroom, index) => (
-                  <article
-                    key={restroom.id}
-                    onClick={() => handleSelectRestroomFromSheet(restroom)}
-                    className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-accent/80 active:scale-[0.98]"
-                  >
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                      <Building2 aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
-                        <span className="shrink-0 text-xs text-muted-foreground">{index + 2}분</span>
+                {filteredRestrooms.map((restroom) => {
+                  const distMeters = getDistanceInMeters(
+                    refCoords.latitude,
+                    refCoords.longitude,
+                    restroom.latitude,
+                    restroom.longitude,
+                  )
+                  const walkMinutes = Math.max(1, Math.round(distMeters / 80))
+                  const hasBidet = restroom.floors.some((f) => f.bidet)
+
+                  return (
+                    <article
+                      key={restroom.id}
+                      onClick={() => handleSelectRestroomFromSheet(restroom)}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:bg-accent/80 active:scale-[0.98]"
+                    >
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <Building2 aria-hidden="true" />
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {restroom.floors.length > 1
-                          ? `${restroom.floors[0].floor} ~ ${restroom.floors[restroom.floors.length - 1].floor}`
-                          : restroom.floors[0].floor}
-                      </p>
-                      <p className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
-                        {restroom.floors.some((f) => f.bidet) ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
-                        비데 {restroom.floors.some((f) => f.bidet) ? '있음' : '없음'}
-                      </p>
-                    </div>
-                  </article>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
+                          <span className="shrink-0 text-xs font-medium text-muted-foreground">약 {walkMinutes}분</span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {restroom.floors.length > 1
+                            ? `${restroom.floors[0].floor} ~ ${restroom.floors[restroom.floors.length - 1].floor}`
+                            : restroom.floors[0].floor}
+                        </p>
+                        <div className="mt-2 flex items-center gap-1 text-xs font-medium">
+                          {hasBidet ? (
+                            <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                              <Check className="size-3.5 stroke-[2.5] text-emerald-600" aria-hidden="true" /> 비데 있음
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 font-semibold text-rose-600">
+                              <X className="size-3.5 stroke-[2.5] text-rose-600" aria-hidden="true" /> 비데 없음
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             </SheetContent>
           </Sheet>
