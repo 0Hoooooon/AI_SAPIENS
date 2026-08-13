@@ -31,8 +31,8 @@ export const restrooms: Restroom[] = [
   {
     id: 2,
     name: '삼성학술정보관(여)',
-    latitude: 37.29411719150855,
-    longitude: 126.97468637207342,
+    latitude: 37.29409917618307,
+    longitude: 126.97471175376053,
     gender: 'female',
     floors: [
       { floor: 'B1층', bidet: true },
