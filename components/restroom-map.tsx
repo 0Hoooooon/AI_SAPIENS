@@ -23,7 +23,95 @@ const CAMPUS_BOUNDS = {
   ne: { latitude: 37.2975, longitude: 126.9790 },
 }
 
-import { restrooms, type Restroom } from '@/lib/restrooms-data'
+type FloorInfo = {
+  floor: string
+  bidet: boolean
+}
+
+type Restroom = {
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+  gender: 'male' | 'female'
+  floors: FloorInfo[]
+}
+
+const restrooms: Restroom[] = [
+  {
+    id: 1,
+    name: '삼성학술정보관(남)',
+    latitude: 37.29402719343835,
+    longitude: 126.97518545621938,
+    gender: 'male',
+    floors: [
+      { floor: 'B1층', bidet: true },
+      { floor: '1층', bidet: true },
+      { floor: '2층', bidet: true },
+      { floor: '3층', bidet: true },
+      { floor: '4층', bidet: true },
+      { floor: '5층', bidet: true },
+    ],
+  },
+  {
+    id: 2,
+    name: '삼성학술정보관(여)',
+    latitude: 37.29411719150855,
+    longitude: 126.97468637207342,
+    gender: 'female',
+    floors: [
+      { floor: 'B1층', bidet: true },
+      { floor: '1층', bidet: true },
+      { floor: '2층', bidet: true },
+      { floor: '3층', bidet: true },
+      { floor: '4층', bidet: true },
+      { floor: '5층', bidet: true },
+    ],
+  },
+  {
+    id: 3,
+    name: '제1공학관(남)',
+    latitude: 37.29505,
+    longitude: 126.97595,
+    gender: 'male',
+    floors: [{ floor: '1층', bidet: true }],
+  },
+  {
+    id: 4,
+    name: '제1공학관(여)',
+    latitude: 37.29515,
+    longitude: 126.97575,
+    gender: 'female',
+    floors: [{ floor: '1층', bidet: true }],
+  },
+  {
+    id: 5,
+    name: '제2공학관(남)',
+    latitude: 37.29295,
+    longitude: 126.97345,
+    gender: 'male',
+    floors: [{ floor: '2층', bidet: false }],
+  },
+  {
+    id: 6,
+    name: '제2공학관(여)',
+    latitude: 37.29305,
+    longitude: 126.97365,
+    gender: 'female',
+    floors: [{ floor: '2층', bidet: true }],
+  },
+  {
+    id: 7,
+    name: '학생회관(남)',
+    latitude: 37.29436022567817,
+    longitude: 126.97356129956843,
+    gender: 'male',
+    floors: [
+      { floor: '1층', bidet: false },
+      { floor: '3층', bidet: true },
+    ],
+  },
+]
 
 type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
 type KakaoMapInstance = {
@@ -195,7 +283,7 @@ export function RestroomMap() {
     userLocationOverlayRef.current = userOverlay
   }
 
-  const openOverlayForRestroom = (restroom: Restroom, defaultFloor?: string) => {
+  const openOverlayForRestroom = (restroom: Restroom) => {
     const maps = kakaoMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
@@ -210,8 +298,7 @@ export function RestroomMap() {
     const position = new maps.LatLng(restroom.latitude, restroom.longitude)
     map.setCenter(position)
 
-    const initialFloorInfo =
-      (defaultFloor ? restroom.floors.find((f) => f.floor === defaultFloor) : null) ?? restroom.floors[0]
+    const initialFloor = restroom.floors[0]
 
     const container = document.createElement('div')
     container.style.cssText = `
@@ -262,9 +349,6 @@ export function RestroomMap() {
         const opt = document.createElement('option')
         opt.value = f.floor
         opt.textContent = f.floor
-        if (f.floor === initialFloorInfo.floor) {
-          opt.selected = true
-        }
         select.appendChild(opt)
       })
 
@@ -294,7 +378,7 @@ export function RestroomMap() {
         ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
         : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
     }
-    updateBidetBadge(initialFloorInfo.bidet)
+    updateBidetBadge(initialFloor.bidet)
     rowDiv.appendChild(bidetSpan)
 
     container.appendChild(rowDiv)
@@ -467,63 +551,63 @@ export function RestroomMap() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = message.trim()
-    if (!trimmed || isSearching) return
+    if (!trimmed) return
 
     setIsSearching(true)
-    const userPrompt = trimmed
-    setMessage('')
-    setToastMessage('🤖 Gemini AI가 답변을 생각하는 중입니다...')
 
-    const sendChatRequest = async (userLocation?: { latitude: number; longitude: number }) => {
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: userPrompt,
-            selectedGender,
-            userLocation,
-          }),
-        })
+    const findAndShowClosest = (userLat: number, userLng: number) => {
+      let candidateList = restrooms.filter((r) => r.gender === selectedGender)
 
-        const data = await res.json()
-
-        if (data.reply) {
-          setToastMessage(data.reply)
-          setTimeout(() => setToastMessage(null), 7000)
+      // '비데' 키워드가 포함되어 있으면 비데가 있는 화장실만 탐색
+      if (trimmed.includes('비데')) {
+        const bidetList = candidateList.filter((r) => r.floors.some((f) => f.bidet))
+        if (bidetList.length > 0) {
+          candidateList = bidetList
         }
-
-        if (data.restroomId) {
-          const target = restrooms.find((r) => r.id === data.restroomId)
-          if (target) {
-            openOverlayForRestroom(target, data.selectedFloor)
-          }
-        }
-      } catch (err) {
-        console.error('Chat error:', err)
-        setToastMessage('Gemini AI 답변을 불러오지 못했습니다.')
-        setTimeout(() => setToastMessage(null), 3500)
-      } finally {
-        setIsSearching(false)
       }
+
+      if (candidateList.length === 0) {
+        setToastMessage('조건에 맞는 화장실을 찾지 못했습니다.')
+        setIsSearching(false)
+        return
+      }
+
+      // 현위치 기준 가장 가까운 화장실 계산
+      let closest = candidateList[0]
+      let minDistance = getDistanceInMeters(userLat, userLng, closest.latitude, closest.longitude)
+
+      for (let i = 1; i < candidateList.length; i++) {
+        const dist = getDistanceInMeters(userLat, userLng, candidateList[i].latitude, candidateList[i].longitude)
+        if (dist < minDistance) {
+          minDistance = dist
+          closest = candidateList[i]
+        }
+      }
+
+      openOverlayForRestroom(closest)
+      setMessage('')
+      setIsSearching(false)
+
+      const distText = minDistance > 1000 ? `${(minDistance / 1000).toFixed(1)}km` : `${Math.round(minDistance)}m`
+      setToastMessage(`가장 가까운 ${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
+
+      setTimeout(() => setToastMessage(null), 4500)
     }
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           showUserLocationOnMap(position.coords.latitude, position.coords.longitude)
-          sendChatRequest({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          })
+          findAndShowClosest(position.coords.latitude, position.coords.longitude)
         },
         () => {
-          sendChatRequest()
+          // GPS 권한 거부 또는 획득 실패 시 캠퍼스 중심점 기준으로 계산
+          findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
         },
         { enableHighAccuracy: true, timeout: 5000 },
       )
     } else {
-      sendChatRequest()
+      findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
     }
   }
 
@@ -549,7 +633,7 @@ export function RestroomMap() {
 
       {toastMessage ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
-          <div className="animate-in fade-in slide-in-from-bottom-2 max-w-md rounded-2xl bg-slate-900/90 px-4 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-md">
+          <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl bg-slate-900/90 px-4 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-md">
             📍 {toastMessage}
           </div>
         </div>
@@ -677,18 +761,11 @@ export function RestroomMap() {
               id="chat-message"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
-              placeholder={isSearching ? 'Gemini AI 생각 중...' : '예: 삼성학술정보관 3층 비데 어디야?'}
-              disabled={isSearching}
+              placeholder="예: 비데 있는 가장 가까운 곳은?"
               className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
               autoComplete="off"
             />
-            <Button
-              type="submit"
-              size="icon-lg"
-              disabled={isSearching}
-              className="size-11 rounded-xl"
-              aria-label="메시지 전송"
-            >
+            <Button type="submit" size="icon-lg" className="size-11 rounded-xl" aria-label="메시지 전송">
               <Send />
             </Button>
           </Field>
