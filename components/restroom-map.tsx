@@ -19,13 +19,27 @@ const CAMPUS_CENTER = { latitude: 37.2936, longitude: 126.9748 }
 
 // 학교 영역 경계 좌표 (성균관대 자연과학캠퍼스 기준)
 const CAMPUS_BOUNDS = {
-  sw: { latitude: 37.2880, longitude: 126.9670 },
-  ne: { latitude: 37.2990, longitude: 126.9820 },
+  sw: { latitude: 37.2905, longitude: 126.9705 },
+  ne: { latitude: 37.2975, longitude: 126.9790 },
 }
 
-const restrooms = [
-  { id: 1, name: '삼성학술정보관(남)', floor: '1층', bidet: true, latitude: 37.29402719343835, longitude: 126.97518545621938, gender: "male" },
-  { id: 2, name: '삼성학술정보관(여)', floor: '1층', bidet: true, latitude: 37.29411719150855, longitude: 126.97468637207342, gender: "female" },
+type Restroom = {
+  id: number
+  name: string
+  floor: string
+  bidet: boolean
+  latitude: number
+  longitude: number
+  gender: 'male' | 'female'
+}
+
+const restrooms: Restroom[] = [
+  { id: 1, name: '삼성학술정보관(남)', floor: '1층', bidet: true, latitude: 37.29402719343835, longitude: 126.97518545621938, gender: 'male' },
+  { id: 2, name: '삼성학술정보관(여)', floor: '1층', bidet: true, latitude: 37.29411719150855, longitude: 126.97468637207342, gender: 'female' },
+  { id: 3, name: '제1공학관(남)', floor: '1층', bidet: true, latitude: 37.29505, longitude: 126.97595, gender: 'male' },
+  { id: 4, name: '제1공학관(여)', floor: '1층', bidet: true, latitude: 37.29515, longitude: 126.97575, gender: 'female' },
+  { id: 5, name: '제2공학관(남)', floor: '2층', bidet: false, latitude: 37.29295, longitude: 126.97345, gender: 'male' },
+  { id: 6, name: '제2공학관(여)', floor: '2층', bidet: true, latitude: 37.29305, longitude: 126.97365, gender: 'female' },
 ]
 
 type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
@@ -36,7 +50,8 @@ type KakaoMapInstance = {
   setMaxLevel(level: number): void
 }
 type KakaoMap = new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
-type KakaoMarker = new (options: { map: unknown; position: unknown; title: string }) => { setMap: (map: null) => void }
+type KakaoMarkerInstance = { setMap: (map: KakaoMapInstance | null) => void }
+type KakaoMarker = new (options: { map: KakaoMapInstance | null; position: unknown; title: string }) => KakaoMarkerInstance
 
 type KakaoMaps = {
   load: (callback: () => void) => void
@@ -106,6 +121,12 @@ export function RestroomMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const [message, setMessage] = useState('')
   const [mapError, setMapError] = useState<string | null>(null)
+  const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('male')
+  const [isMapReady, setIsMapReady] = useState(false)
+
+  const kakaoMapsRef = useRef<KakaoMaps | null>(null)
+  const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
+  const markersRef = useRef<KakaoMarkerInstance[]>([])
 
   useEffect(() => {
     const container = mapContainerRef.current
@@ -118,7 +139,6 @@ export function RestroomMap() {
     }
 
     let cancelled = false
-    let markers: Array<{ setMap: (map: null) => void }> = []
 
     loadKakaoMaps(appKey)
       .then((maps) => {
@@ -129,11 +149,11 @@ export function RestroomMap() {
           level: 3,
         })
 
-        // 확대/축소 범위 제한 (너무 멀리 줌아웃하지 못하게 설정)
+        // 확대/축소 범위 제한
         map.setMinLevel(1)
-        map.setMaxLevel(4)
+        map.setMaxLevel(3)
 
-        // 지도가 학교 Bounding Box 범위를 벗어나지 못하도록 이동 제한
+        // 이동 범위 제한 (캠퍼스 경계)
         maps.event.addListener(map, 'center_changed', () => {
           const center = map.getCenter()
           const lat = center.getLat()
@@ -147,13 +167,9 @@ export function RestroomMap() {
           }
         })
 
-        markers = restrooms.map((restroom) =>
-          new maps.Marker({
-            map,
-            position: new maps.LatLng(restroom.latitude, restroom.longitude),
-            title: `${restroom.name} ${restroom.floor}`,
-          }),
-        )
+        kakaoMapsRef.current = maps
+        mapInstanceRef.current = map
+        setIsMapReady(true)
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -163,15 +179,40 @@ export function RestroomMap() {
 
     return () => {
       cancelled = true
-      markers.forEach((marker) => marker.setMap(null))
+      markersRef.current.forEach((marker) => marker.setMap(null))
+      markersRef.current = []
     }
   }, [])
+
+  // 성별 선택 변경 시 지도 마커 업데이트
+  useEffect(() => {
+    const maps = kakaoMapsRef.current
+    const map = mapInstanceRef.current
+    if (!isMapReady || !maps || !map) return
+
+    // 기존 마커 제거
+    markersRef.current.forEach((marker) => marker.setMap(null))
+    markersRef.current = []
+
+    // 선택된 성별 화장실만 필터링 후 마커 등록
+    const filtered = restrooms.filter((restroom) => restroom.gender === selectedGender)
+
+    markersRef.current = filtered.map((restroom) =>
+      new maps.Marker({
+        map,
+        position: new maps.LatLng(restroom.latitude, restroom.longitude),
+        title: `${restroom.name} ${restroom.floor}`,
+      }),
+    )
+  }, [selectedGender, isMapReady])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!message.trim()) return
     setMessage('')
   }
+
+  const filteredRestrooms = restrooms.filter((restroom) => restroom.gender === selectedGender)
 
   return (
     <main className="relative isolate min-h-dvh overflow-hidden bg-muted font-sans">
@@ -187,52 +228,91 @@ export function RestroomMap() {
       ) : null}
 
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-
         <div className="rounded-xl bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
           <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
-          <p className="text-xs text-muted-foreground">가까운 화장실 5곳</p>
+          <p className="text-xs text-muted-foreground">
+            가까운 {selectedGender === 'male' ? '남성' : '여성'} 화장실 {filteredRestrooms.length}곳
+          </p>
         </div>
 
-        <Sheet>
-          <SheetTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon-lg"
-                className="pointer-events-auto bg-background shadow-md"
-                aria-label="화장실 목록 열기"
-              />
-            }
+        <div className="pointer-events-auto flex items-center gap-2">
+          {/* 남 / 여 선택 스위치 */}
+          <div
+            className="flex items-center rounded-xl border bg-background/95 p-1 shadow-md backdrop-blur-sm"
+            role="radiogroup"
+            aria-label="성별 선택"
           >
-            <Menu />
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[88%] max-w-sm bg-background p-0">
-            <SheetHeader className="border-b p-5 pr-14">
-              <SheetTitle className="text-lg font-bold">가까운 화장실</SheetTitle>
-              <SheetDescription>캠퍼스 내 화장실 정보예요.</SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-col gap-3 overflow-y-auto p-4">
-              {restrooms.map((restroom, index) => (
-                <article key={restroom.id} className="flex items-start gap-3 rounded-xl border bg-card p-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Building2 aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
-                      <span className="shrink-0 text-xs text-muted-foreground">{index + 2}분</span>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedGender === 'male'}
+              onClick={() => setSelectedGender('male')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                selectedGender === 'male'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              남
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedGender === 'female'}
+              onClick={() => setSelectedGender('female')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                selectedGender === 'female'
+                  ? 'bg-rose-500 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              여
+            </button>
+          </div>
+
+          <Sheet>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-lg"
+                  className="pointer-events-auto bg-background shadow-md"
+                  aria-label="화장실 목록 열기"
+                />
+              }
+            >
+              <Menu />
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[88%] max-w-sm bg-background p-0">
+              <SheetHeader className="border-b p-5 pr-14">
+                <SheetTitle className="text-lg font-bold">
+                  가까운 화장실 ({selectedGender === 'male' ? '남성' : '여성'})
+                </SheetTitle>
+                <SheetDescription>선택한 성별의 캠퍼스 내 화장실 정보예요.</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-3 overflow-y-auto p-4">
+                {filteredRestrooms.map((restroom, index) => (
+                  <article key={restroom.id} className="flex items-start gap-3 rounded-xl border bg-card p-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <Building2 aria-hidden="true" />
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{restroom.floor}</p>
-                    <p className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
-                      {restroom.bidet ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
-                      비데 {restroom.bidet ? '있음' : '없음'}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </SheetContent>
-        </Sheet>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
+                        <span className="shrink-0 text-xs text-muted-foreground">{index + 2}분</span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{restroom.floor}</p>
+                      <p className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
+                        {restroom.bidet ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
+                        비데 {restroom.bidet ? '있음' : '없음'}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
 
       <form
@@ -241,12 +321,14 @@ export function RestroomMap() {
       >
         <FieldGroup className="mx-auto max-w-xl rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur-md">
           <Field orientation="horizontal" className="gap-2">
-            <label htmlFor="chat-message" className="sr-only">챗봇에게 화장실 질문하기</label>
+            <label htmlFor="chat-message" className="sr-only">
+              챗봇에게 화장실 질문하기
+            </label>
             <Input
               id="chat-message"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
-              placeholder="예: 비데 있는 ���장 가까운 곳은?"
+              placeholder="예: 비데 있는 가장 가까운 곳은?"
               className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
               autoComplete="off"
             />
