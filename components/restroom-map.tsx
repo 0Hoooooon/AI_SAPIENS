@@ -17,10 +17,10 @@ import {
 
 const CAMPUS_CENTER = { latitude: 37.2936, longitude: 126.9748 }
 
-// 학교 영역 경계 좌표 (성균관대 자연과학캠퍼스 기준)
+// 학교 영역 경계 좌표 (성균관대 자연과학캠퍼스 기준 - 모바일 드래그 여유 범위 확대)
 const CAMPUS_BOUNDS = {
-  sw: { latitude: 37.2905, longitude: 126.9705 },
-  ne: { latitude: 37.2975, longitude: 126.9790 },
+  sw: { latitude: 37.2870, longitude: 126.9670 },
+  ne: { latitude: 37.3010, longitude: 126.9820 },
 }
 
 import { restrooms, type Restroom } from '@/lib/restrooms-data'
