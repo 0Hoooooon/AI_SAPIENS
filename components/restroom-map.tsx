@@ -52,12 +52,22 @@ type KakaoMapInstance = {
 type KakaoMap = new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
 type KakaoMarkerInstance = { setMap: (map: KakaoMapInstance | null) => void }
 type KakaoMarker = new (options: { map: KakaoMapInstance | null; position: unknown; title: string }) => KakaoMarkerInstance
+type KakaoCustomOverlayInstance = { setMap: (map: KakaoMapInstance | null) => void }
+type KakaoCustomOverlay = new (options: {
+  map?: KakaoMapInstance | null
+  position: unknown
+  content: HTMLElement | string
+  xAnchor?: number
+  yAnchor?: number
+  zIndex?: number
+}) => KakaoCustomOverlayInstance
 
 type KakaoMaps = {
   load: (callback: () => void) => void
   LatLng: KakaoLatLng
   Map: KakaoMap
   Marker: KakaoMarker
+  CustomOverlay: KakaoCustomOverlay
   event: {
     addListener: (target: unknown, type: string, callback: () => void) => void
   }
@@ -127,6 +137,7 @@ export function RestroomMap() {
   const kakaoMapsRef = useRef<KakaoMaps | null>(null)
   const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
   const markersRef = useRef<KakaoMarkerInstance[]>([])
+  const currentOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
 
   useEffect(() => {
     const container = mapContainerRef.current
@@ -167,6 +178,14 @@ export function RestroomMap() {
           }
         })
 
+        // 지도 바탕 클릭 시 열려있는 팝업 닫기
+        maps.event.addListener(map, 'click', () => {
+          if (currentOverlayRef.current) {
+            currentOverlayRef.current.setMap(null)
+            currentOverlayRef.current = null
+          }
+        })
+
         kakaoMapsRef.current = maps
         mapInstanceRef.current = map
         setIsMapReady(true)
@@ -179,31 +198,100 @@ export function RestroomMap() {
 
     return () => {
       cancelled = true
+      if (currentOverlayRef.current) {
+        currentOverlayRef.current.setMap(null)
+        currentOverlayRef.current = null
+      }
       markersRef.current.forEach((marker) => marker.setMap(null))
       markersRef.current = []
     }
   }, [])
 
-  // 성별 선택 변경 시 지도 마커 업데이트
+  // 성별 선택 변경 시 지도 마커 및 팝업 이벤트 업데이트
   useEffect(() => {
     const maps = kakaoMapsRef.current
     const map = mapInstanceRef.current
     if (!isMapReady || !maps || !map) return
 
+    // 열려있는 팝업 제거
+    if (currentOverlayRef.current) {
+      currentOverlayRef.current.setMap(null)
+      currentOverlayRef.current = null
+    }
+
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current = []
 
-    // 선택된 성별 화장실만 필터링 후 마커 등록
+    // 선택된 성별 화장실만 필터링 후 마커 등록 및 핀 클릭 이벤트 추가
     const filtered = restrooms.filter((restroom) => restroom.gender === selectedGender)
 
-    markersRef.current = filtered.map((restroom) =>
-      new maps.Marker({
+    markersRef.current = filtered.map((restroom) => {
+      const marker = new maps.Marker({
         map,
         position: new maps.LatLng(restroom.latitude, restroom.longitude),
         title: `${restroom.name} ${restroom.floor}`,
-      }),
-    )
+      })
+
+      // 핀 클릭 시 바로 위에 층수 및 비데 유무 팝업 표시
+      maps.event.addListener(marker, 'click', () => {
+        if (currentOverlayRef.current) {
+          currentOverlayRef.current.setMap(null)
+        }
+
+        const bidetText = restroom.bidet
+          ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
+          : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
+
+        const content = `
+          <div style="
+            position: relative;
+            bottom: 12px;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+            font-family: system-ui, -apple-system, sans-serif;
+            white-space: nowrap;
+            cursor: default;
+          ">
+            <div style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 2px;">
+              ${restroom.name}
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569;">
+              <span>🏢 ${restroom.floor}</span>
+              <span style="color: #cbd5e1;">•</span>
+              <span>${bidetText}</span>
+            </div>
+            <div style="
+              position: absolute;
+              bottom: -5px;
+              left: 50%;
+              transform: translateX(-50%) rotate(45deg);
+              width: 8px;
+              height: 8px;
+              background: #ffffff;
+              border-right: 1px solid rgba(0, 0, 0, 0.12);
+              border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+            "></div>
+          </div>
+        `
+
+        const overlay = new maps.CustomOverlay({
+          map,
+          position: new maps.LatLng(restroom.latitude, restroom.longitude),
+          content,
+          xAnchor: 0.5,
+          yAnchor: 1.0,
+          zIndex: 3,
+        })
+
+        currentOverlayRef.current = overlay
+      })
+
+      return marker
+    })
   }, [selectedGender, isMapReady])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
