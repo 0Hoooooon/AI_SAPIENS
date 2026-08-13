@@ -23,16 +23,6 @@ const CAMPUS_BOUNDS = {
   ne: { latitude: 37.3010, longitude: 126.9820 },
 }
 
-// 성균관대 자연과학캠퍼스 외곽 다각형 좌표 (학교 밖 암전 마스킹용)
-const SKKU_CAMPUS_BOUNDARY = [
-  { latitude: 37.2978, longitude: 126.9710 }, // 북서 (일월저수지 방면)
-  { latitude: 37.2978, longitude: 126.9790 }, // 북동 (의학관/생명공학관 방면)
-  { latitude: 37.2940, longitude: 126.9808 }, // 동 (성대역 방면)
-  { latitude: 37.2905, longitude: 126.9800 }, // 동남 (동문 방면)
-  { latitude: 37.2900, longitude: 126.9735 }, // 남 (남문/기숙사 방면)
-  { latitude: 37.2915, longitude: 126.9700 }, // 서남 (서문 방면)
-]
-
 import { restrooms, type Restroom } from '@/lib/restrooms-data'
 
 type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
@@ -55,24 +45,12 @@ type KakaoCustomOverlay = new (options: {
   zIndex?: number
 }) => KakaoCustomOverlayInstance
 
-type KakaoPolygonInstance = { setMap: (map: KakaoMapInstance | null) => void }
-type KakaoPolygon = new (options: {
-  path: unknown[]
-  strokeWeight?: number
-  strokeColor?: string
-  strokeOpacity?: number
-  strokeStyle?: string
-  fillColor?: string
-  fillOpacity?: number
-}) => KakaoPolygonInstance
-
 type KakaoMaps = {
   load: (callback: () => void) => void
   LatLng: KakaoLatLng
   Map: KakaoMap
   Marker: KakaoMarker
   CustomOverlay: KakaoCustomOverlay
-  Polygon: KakaoPolygon
   event: {
     addListener: (target: unknown, type: string, callback: () => void) => void
   }
@@ -164,7 +142,6 @@ export function RestroomMap() {
   const markersRef = useRef<KakaoMarkerInstance[]>([])
   const currentOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
   const userLocationOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
-  const outerMaskRef = useRef<KakaoPolygonInstance | null>(null)
 
   const showUserLocationOnMap = (lat: number, lng: number) => {
     setUserCoords({ latitude: lat, longitude: lng })
@@ -394,27 +371,6 @@ export function RestroomMap() {
           }
         })
 
-        // 성균관대학교 외부 영역 반투명 암전(Dim Masking) 다각형 생성
-        const outerPath = [
-          new maps.LatLng(37.3500, 126.9300),
-          new maps.LatLng(37.3500, 127.0200),
-          new maps.LatLng(37.2300, 127.0200),
-          new maps.LatLng(37.2300, 126.9300),
-        ]
-        const campusPath = SKKU_CAMPUS_BOUNDARY.map((pt) => new maps.LatLng(pt.latitude, pt.longitude))
-
-        const maskPolygon = new maps.Polygon({
-          path: [outerPath, campusPath],
-          strokeWeight: 2,
-          strokeColor: '#059669', // 성균관대 에메랄드 딥그린 경계선
-          strokeOpacity: 0.75,
-          strokeStyle: 'solid',
-          fillColor: '#0f172a', // 학교 바깥쪽을 어둡게 처리하여 상점 POI 시선 차단
-          fillOpacity: 0.45,
-        })
-        maskPolygon.setMap(map)
-        outerMaskRef.current = maskPolygon
-
         kakaoMapsRef.current = maps
         mapInstanceRef.current = map
         setIsMapReady(true)
@@ -427,10 +383,6 @@ export function RestroomMap() {
 
     return () => {
       cancelled = true
-      if (outerMaskRef.current) {
-        outerMaskRef.current.setMap(null)
-        outerMaskRef.current = null
-      }
       if (currentOverlayRef.current) {
         currentOverlayRef.current.setMap(null)
         currentOverlayRef.current = null
