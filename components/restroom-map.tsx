@@ -17,13 +17,25 @@ import {
 
 const CAMPUS_CENTER = { latitude: 37.2936, longitude: 126.9748 }
 
+// 학교 영역 경계 좌표 (성균관대 자연과학캠퍼스 기준)
+const CAMPUS_BOUNDS = {
+  sw: { latitude: 37.2880, longitude: 126.9670 },
+  ne: { latitude: 37.2990, longitude: 126.9820 },
+}
+
 const restrooms = [
   { id: 1, name: '삼성학술정보관(남)', floor: '1층', bidet: true, latitude: 37.29402719343835, longitude: 126.97518545621938, gender: "male" },
   { id: 2, name: '삼성학술정보관(여)', floor: '1층', bidet: true, latitude: 37.29411719150855, longitude: 126.97468637207342, gender: "female" },
 ]
 
-type KakaoLatLng = new (latitude: number, longitude: number) => unknown
-type KakaoMap = new (container: HTMLElement, options: { center: unknown; level: number }) => unknown
+type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
+type KakaoMapInstance = {
+  getCenter(): { getLat(): number; getLng(): number }
+  setCenter(latlng: unknown): void
+  setMinLevel(level: number): void
+  setMaxLevel(level: number): void
+}
+type KakaoMap = new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
 type KakaoMarker = new (options: { map: unknown; position: unknown; title: string }) => { setMap: (map: null) => void }
 
 type KakaoMaps = {
@@ -31,6 +43,9 @@ type KakaoMaps = {
   LatLng: KakaoLatLng
   Map: KakaoMap
   Marker: KakaoMarker
+  event: {
+    addListener: (target: unknown, type: string, callback: () => void) => void
+  }
 }
 
 declare global {
@@ -112,6 +127,24 @@ export function RestroomMap() {
         const map = new maps.Map(container, {
           center: new maps.LatLng(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude),
           level: 3,
+        })
+
+        // 확대/축소 범위 제한 (너무 멀리 줌아웃하지 못하게 설정)
+        map.setMinLevel(1)
+        map.setMaxLevel(4)
+
+        // 지도가 학교 Bounding Box 범위를 벗어나지 못하도록 이동 제한
+        maps.event.addListener(map, 'center_changed', () => {
+          const center = map.getCenter()
+          const lat = center.getLat()
+          const lng = center.getLng()
+
+          const clampedLat = Math.max(CAMPUS_BOUNDS.sw.latitude, Math.min(CAMPUS_BOUNDS.ne.latitude, lat))
+          const clampedLng = Math.max(CAMPUS_BOUNDS.sw.longitude, Math.min(CAMPUS_BOUNDS.ne.longitude, lng))
+
+          if (lat !== clampedLat || lng !== clampedLng) {
+            map.setCenter(new maps.LatLng(clampedLat, clampedLng))
+          }
         })
 
         markers = restrooms.map((restroom) =>
