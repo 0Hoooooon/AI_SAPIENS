@@ -23,23 +23,83 @@ const CAMPUS_BOUNDS = {
   ne: { latitude: 37.2975, longitude: 126.9790 },
 }
 
+type FloorInfo = {
+  floor: string
+  bidet: boolean
+}
+
 type Restroom = {
   id: number
   name: string
-  floor: string
-  bidet: boolean
   latitude: number
   longitude: number
   gender: 'male' | 'female'
+  floors: FloorInfo[]
 }
 
 const restrooms: Restroom[] = [
-  { id: 1, name: '삼성학술정보관(남)', floor: '1층', bidet: true, latitude: 37.29402719343835, longitude: 126.97518545621938, gender: 'male' },
-  { id: 2, name: '삼성학술정보관(여)', floor: '1층', bidet: true, latitude: 37.29411719150855, longitude: 126.97468637207342, gender: 'female' },
-  { id: 3, name: '제1공학관(남)', floor: '1층', bidet: true, latitude: 37.29505, longitude: 126.97595, gender: 'male' },
-  { id: 4, name: '제1공학관(여)', floor: '1층', bidet: true, latitude: 37.29515, longitude: 126.97575, gender: 'female' },
-  { id: 5, name: '제2공학관(남)', floor: '2층', bidet: false, latitude: 37.29295, longitude: 126.97345, gender: 'male' },
-  { id: 6, name: '제2공학관(여)', floor: '2층', bidet: true, latitude: 37.29305, longitude: 126.97365, gender: 'female' },
+  {
+    id: 1,
+    name: '삼성학술정보관(남)',
+    latitude: 37.29402719343835,
+    longitude: 126.97518545621938,
+    gender: 'male',
+    floors: [
+      { floor: 'B1층', bidet: true },
+      { floor: '1층', bidet: true },
+      { floor: '2층', bidet: true },
+      { floor: '3층', bidet: true },
+      { floor: '4층', bidet: true },
+      { floor: '5층', bidet: true },
+    ],
+  },
+  {
+    id: 2,
+    name: '삼성학술정보관(여)',
+    latitude: 37.29411719150855,
+    longitude: 126.97468637207342,
+    gender: 'female',
+    floors: [
+      { floor: 'B1층', bidet: true },
+      { floor: '1층', bidet: true },
+      { floor: '2층', bidet: true },
+      { floor: '3층', bidet: true },
+      { floor: '4층', bidet: true },
+      { floor: '5층', bidet: true },
+    ],
+  },
+  {
+    id: 3,
+    name: '제1공학관(남)',
+    latitude: 37.29505,
+    longitude: 126.97595,
+    gender: 'male',
+    floors: [{ floor: '1층', bidet: true }],
+  },
+  {
+    id: 4,
+    name: '제1공학관(여)',
+    latitude: 37.29515,
+    longitude: 126.97575,
+    gender: 'female',
+    floors: [{ floor: '1층', bidet: true }],
+  },
+  {
+    id: 5,
+    name: '제2공학관(남)',
+    latitude: 37.29295,
+    longitude: 126.97345,
+    gender: 'male',
+    floors: [{ floor: '2층', bidet: false }],
+  },
+  {
+    id: 6,
+    name: '제2공학관(여)',
+    latitude: 37.29305,
+    longitude: 126.97365,
+    gender: 'female',
+    floors: [{ floor: '2층', bidet: true }],
+  },
 ]
 
 type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
@@ -230,58 +290,112 @@ export function RestroomMap() {
       const marker = new maps.Marker({
         map,
         position: new maps.LatLng(restroom.latitude, restroom.longitude),
-        title: `${restroom.name} ${restroom.floor}`,
+        title: restroom.name,
       })
 
-      // 핀 클릭 시 바로 위에 층수 및 비데 유무 팝업 표시
+      // 핀 클릭 시 바로 위에 층수 드롭다운 및 비데 유무 팝업 표시
       maps.event.addListener(marker, 'click', () => {
         if (currentOverlayRef.current) {
           currentOverlayRef.current.setMap(null)
         }
 
-        const bidetText = restroom.bidet
-          ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
-          : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
+        const initialFloor = restroom.floors[0]
 
-        const content = `
-          <div style="
-            position: relative;
-            bottom: 36px;
-            padding: 8px 12px;
-            background: #ffffff;
-            border: 1px solid rgba(0, 0, 0, 0.12);
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-            font-family: system-ui, -apple-system, sans-serif;
-            white-space: nowrap;
-            cursor: default;
-          ">
-            <div style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 2px;">
-              ${restroom.name}
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569;">
-              <span>🏢 ${restroom.floor}</span>
-              <span style="color: #cbd5e1;">•</span>
-              <span>${bidetText}</span>
-            </div>
-            <div style="
-              position: absolute;
-              bottom: -5px;
-              left: 50%;
-              transform: translateX(-50%) rotate(45deg);
-              width: 8px;
-              height: 8px;
-              background: #ffffff;
-              border-right: 1px solid rgba(0, 0, 0, 0.12);
-              border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-            "></div>
-          </div>
+        const container = document.createElement('div')
+        container.style.cssText = `
+          position: relative;
+          bottom: 36px;
+          padding: 10px 14px;
+          background: #ffffff;
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          border-radius: 12px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          font-family: system-ui, -apple-system, sans-serif;
+          white-space: nowrap;
+          cursor: default;
         `
+
+        // 건물/화장실 이름
+        const titleDiv = document.createElement('div')
+        titleDiv.style.cssText = 'font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
+        titleDiv.textContent = restroom.name
+        container.appendChild(titleDiv)
+
+        // 세부 정보 행
+        const rowDiv = document.createElement('div')
+        rowDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569;'
+
+        // 층선택 (다중 층일 때 드롭다운 표시)
+        if (restroom.floors.length > 1) {
+          const select = document.createElement('select')
+          select.style.cssText = `
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #0f172a;
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+          `
+          restroom.floors.forEach((f) => {
+            const opt = document.createElement('option')
+            opt.value = f.floor
+            opt.textContent = f.floor
+            select.appendChild(opt)
+          })
+
+          select.addEventListener('change', (e) => {
+            const selectedVal = (e.target as HTMLSelectElement).value
+            const targetFloor = restroom.floors.find((f) => f.floor === selectedVal) ?? restroom.floors[0]
+            updateBidetBadge(targetFloor.bidet)
+          })
+
+          rowDiv.appendChild(select)
+        } else {
+          const singleFloorSpan = document.createElement('span')
+          singleFloorSpan.style.cssText = 'font-weight: 500;'
+          singleFloorSpan.textContent = `🏢 ${restroom.floors[0].floor}`
+          rowDiv.appendChild(singleFloorSpan)
+        }
+
+        const dotSpan = document.createElement('span')
+        dotSpan.style.color = '#cbd5e1'
+        dotSpan.textContent = '•'
+        rowDiv.appendChild(dotSpan)
+
+        // 비데 유무 표시
+        const bidetSpan = document.createElement('span')
+        const updateBidetBadge = (hasBidet: boolean) => {
+          bidetSpan.innerHTML = hasBidet
+            ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
+            : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
+        }
+        updateBidetBadge(initialFloor.bidet)
+        rowDiv.appendChild(bidetSpan)
+
+        container.appendChild(rowDiv)
+
+        // 말풍선 아래 화살표
+        const tail = document.createElement('div')
+        tail.style.cssText = `
+          position: absolute;
+          bottom: -5px;
+          left: 50%;
+          transform: translateX(-50%) rotate(45deg);
+          width: 8px;
+          height: 8px;
+          background: #ffffff;
+          border-right: 1px solid rgba(0, 0, 0, 0.12);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        `
+        container.appendChild(tail)
 
         const overlay = new maps.CustomOverlay({
           map,
           position: new maps.LatLng(restroom.latitude, restroom.longitude),
-          content,
+          content: container,
           xAnchor: 0.5,
           yAnchor: 1.0,
           zIndex: 3,
@@ -389,10 +503,14 @@ export function RestroomMap() {
                         <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
                         <span className="shrink-0 text-xs text-muted-foreground">{index + 2}분</span>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{restroom.floor}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {restroom.floors.length > 1
+                          ? `${restroom.floors[0].floor} ~ ${restroom.floors[restroom.floors.length - 1].floor}`
+                          : restroom.floors[0].floor}
+                      </p>
                       <p className="mt-2 flex items-center gap-1 text-xs font-medium text-foreground">
-                        {restroom.bidet ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
-                        비데 {restroom.bidet ? '있음' : '없음'}
+                        {restroom.floors.some((f) => f.bidet) ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
+                        비데 {restroom.floors.some((f) => f.bidet) ? '있음' : '없음'}
                       </p>
                     </div>
                   </article>
