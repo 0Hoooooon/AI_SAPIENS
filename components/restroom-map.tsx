@@ -290,7 +290,7 @@ export function RestroomMap() {
       select.addEventListener('change', (e) => {
         const selectedVal = (e.target as HTMLSelectElement).value
         const targetFloor = restroom.floors.find((f) => f.floor === selectedVal) ?? restroom.floors[0]
-        updateBidetBadge(targetFloor.bidet)
+        updateBadges(targetFloor)
       })
 
       rowDiv.appendChild(select)
@@ -306,15 +306,19 @@ export function RestroomMap() {
     dotSpan.textContent = '•'
     rowDiv.appendChild(dotSpan)
 
-    // 비데 유무 표시
-    const bidetSpan = document.createElement('span')
-    const updateBidetBadge = (hasBidet: boolean) => {
-      bidetSpan.innerHTML = hasBidet
+    // 비데 & 장애인용 화장실 유무 표시
+    const badgeSpan = document.createElement('span')
+    const updateBadges = (floor: FloorInfo) => {
+      const bidetHtml = floor.bidet
         ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
         : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
+      const accessibleHtml = floor.accessible
+        ? '<span style="color: #2563eb; font-weight: 600;"> • 장애인용 있음</span>'
+        : '<span style="color: #64748b; font-weight: 500;"> • 장애인용 없음</span>'
+      badgeSpan.innerHTML = bidetHtml + accessibleHtml
     }
-    updateBidetBadge(initialFloor.bidet)
-    rowDiv.appendChild(bidetSpan)
+    updateBadges(initialFloor)
+    rowDiv.appendChild(badgeSpan)
 
     container.appendChild(rowDiv)
 
@@ -517,6 +521,14 @@ export function RestroomMap() {
         }
       }
 
+      // '장애인' 또는 '휠체어' 키워드가 포함되어 있으면 장애인용 화장실만 탐색
+      if (trimmed.includes('장애인') || trimmed.includes('휠체어')) {
+        const accessibleList = candidateList.filter((r) => r.floors.some((f) => f.accessible))
+        if (accessibleList.length > 0) {
+          candidateList = accessibleList
+        }
+      }
+
       if (candidateList.length === 0) {
         setToastMessage('조건에 맞는 화장실을 찾지 못했습니다.')
         setIsSearching(false)
@@ -668,6 +680,7 @@ export function RestroomMap() {
                   )
                   const walkMinutes = Math.max(1, Math.round(distMeters / 80))
                   const hasBidet = restroom.floors.some((f) => f.bidet)
+                  const hasAccessible = restroom.floors.some((f) => f.accessible)
 
                   return (
                     <article
@@ -688,7 +701,7 @@ export function RestroomMap() {
                             ? `${restroom.floors[0].floor} ~ ${restroom.floors[restroom.floors.length - 1].floor}`
                             : restroom.floors[0].floor}
                         </p>
-                        <div className="mt-2 flex items-center gap-1 text-xs font-medium">
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-medium">
                           {hasBidet ? (
                             <span className="flex items-center gap-1 font-semibold text-emerald-600">
                               <Check className="size-3.5 stroke-[2.5] text-emerald-600" aria-hidden="true" /> 비데 있음
@@ -696,6 +709,16 @@ export function RestroomMap() {
                           ) : (
                             <span className="flex items-center gap-1 font-semibold text-rose-600">
                               <X className="size-3.5 stroke-[2.5] text-rose-600" aria-hidden="true" /> 비데 없음
+                            </span>
+                          )}
+                          <span className="text-muted-foreground/40">•</span>
+                          {hasAccessible ? (
+                            <span className="flex items-center gap-1 font-semibold text-blue-600">
+                              <Check className="size-3.5 stroke-[2.5] text-blue-600" aria-hidden="true" /> 장애인용 있음
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 font-medium text-muted-foreground">
+                              <X className="size-3.5 stroke-[2.5] text-muted-foreground" aria-hidden="true" /> 장애인용 없음
                             </span>
                           )}
                         </div>

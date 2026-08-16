@@ -1,6 +1,7 @@
 export type FloorInfo = {
   floor: string
   bidet: boolean
+  accessible?: boolean
 }
 
 export type Restroom = {
@@ -20,12 +21,12 @@ export const restrooms: Restroom[] = [
     longitude: 126.97518545621938,
     gender: 'male',
     floors: [
-      { floor: 'B1층', bidet: true },
-      { floor: '1층', bidet: true },
-      { floor: '2층', bidet: true },
-      { floor: '3층', bidet: true },
-      { floor: '4층', bidet: true },
-      { floor: '5층', bidet: true },
+      { floor: 'B1층', bidet: true, accessible: false },
+      { floor: '1층', bidet: true, accessible: true },
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
     ],
   },
   {
@@ -35,12 +36,12 @@ export const restrooms: Restroom[] = [
     longitude: 126.97471175376053,
     gender: 'female',
     floors: [
-      { floor: 'B1층', bidet: true },
-      { floor: '1층', bidet: true },
-      { floor: '2층', bidet: true },
-      { floor: '3층', bidet: true },
-      { floor: '4층', bidet: true },
-      { floor: '5층', bidet: true },
+      { floor: 'B1층', bidet: true, accessible: false },
+      { floor: '1층', bidet: true, accessible: true },
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
     ],
   },
   {
@@ -50,8 +51,8 @@ export const restrooms: Restroom[] = [
     longitude: 126.97356129956843,
     gender: 'male',
     floors: [
-      { floor: '1층', bidet: false },
-      { floor: '3층', bidet: true },
+      { floor: '1층', bidet: false, accessible: true },
+      { floor: '3층', bidet: true, accessible: false },
     ],
   },
   {
@@ -61,8 +62,8 @@ export const restrooms: Restroom[] = [
     longitude: 126.97817745824418,
     gender: 'male',
     floors: [
-      { floor: '1층', bidet: true },
-      { floor: '6층', bidet: false },
+      { floor: '1층', bidet: true, accessible: false },
+      { floor: '6층', bidet: false, accessible: false },
     ],
   },
   {
@@ -71,7 +72,7 @@ export const restrooms: Restroom[] = [
     latitude: 37.29229783855852,
     longitude: 126.97843966899062,
     gender: 'female',
-    floors: [{ floor: '6층', bidet: false }],
+    floors: [{ floor: '6층', bidet: false, accessible: false }],
   },
   {
     id: 6,
@@ -79,6 +80,22 @@ export const restrooms: Restroom[] = [
     latitude: 37.29322581440059,
     longitude: 126.97793471650336,
     gender: 'male',
-    floors: [{ floor: '1층', bidet: false }],
+    floors: [{ floor: '1층', bidet: false, accessible: false }],
+  },
+  {
+    id: 7,
+    name: 'E센터1(남)',
+    latitude: 37.2951757,
+    longitude: 126.9778738,
+    gender: 'male',
+    floors: [
+      { floor: '2층', bidet: false, accessible: false },
+      { floor: '3층', bidet: false, accessible: false },
+      { floor: '4층', bidet: false, accessible: false },
+      { floor: '5층', bidet: false, accessible: false },
+      { floor: '6층', bidet: false, accessible: false },
+      { floor: '7층', bidet: false, accessible: false },
+      { floor: '8층', bidet: false, accessible: false },
+    ],
   },
 ]
