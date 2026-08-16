@@ -145,6 +145,19 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c
 }
 
+// 챗봇 입력 쿼리에서 층수 추출 (예: "3층", "B1층", "b1층", "지하 1층", "7층")
+function extractFloorFromQuery(query: string): string | null {
+  const basementMatch = query.match(/(?:b|B|지하)\s*(\d+)/)
+  if (basementMatch) {
+    return `B${basementMatch[1]}층`
+  }
+  const floorMatch = query.match(/(\d+)\s*층/)
+  if (floorMatch) {
+    return `${floorMatch[1]}층`
+  }
+  return null
+}
+
 // 변기(🚽) 아이콘이 포함된 커스텀 지도 핀 생성 (슬림한 올-그린 #0c4f34 핀)
 function createToiletPinElement() {
   const skkuGreen = '#0c4f34'
@@ -267,7 +280,7 @@ export function RestroomMap() {
     userLocationOverlayRef.current = userOverlay
   }
 
-  const openOverlayForRestroom = (restroom: Restroom) => {
+  const openOverlayForRestroom = (restroom: Restroom, defaultFloor?: string) => {
     const maps = naverMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
@@ -282,7 +295,7 @@ export function RestroomMap() {
     const position = new maps.LatLng(restroom.latitude, restroom.longitude)
     map.setCenter(position)
 
-    const initialFloor = restroom.floors[0]
+    const initialFloor = (defaultFloor && restroom.floors.find((f) => f.floor === defaultFloor)) || restroom.floors[0]
 
     const container = document.createElement('div')
     container.style.cssText = `
@@ -332,6 +345,9 @@ export function RestroomMap() {
         const opt = document.createElement('option')
         opt.value = f.floor
         opt.textContent = f.floor
+        if (f.floor === initialFloor.floor) {
+          opt.selected = true
+        }
         select.appendChild(opt)
       })
 
@@ -571,21 +587,31 @@ export function RestroomMap() {
     setIsSearching(true)
 
     const findAndShowClosest = (userLat: number, userLng: number) => {
+      const targetFloor = extractFloorFromQuery(trimmed)
+      const hasBidetQuery = trimmed.includes('비데')
+      const hasAccessibleQuery = trimmed.includes('장애인') || trimmed.includes('휠체어')
+
       let candidateList = restrooms.filter((r) => r.gender === selectedGender)
 
-      // '비데' 키워드가 포함되어 있으면 비데가 있는 화장실만 탐색
-      if (trimmed.includes('비데')) {
-        const bidetList = candidateList.filter((r) => r.floors.some((f) => f.bidet))
-        if (bidetList.length > 0) {
-          candidateList = bidetList
-        }
-      }
+      // 층수 / 비데 / 장애인화장실 조건 검색
+      if (targetFloor || hasBidetQuery || hasAccessibleQuery) {
+        const exactMatched = candidateList.filter((r) =>
+          r.floors.some(
+            (f) =>
+              (!targetFloor || f.floor === targetFloor) &&
+              (!hasBidetQuery || f.bidet) &&
+              (!hasAccessibleQuery || f.accessible),
+          ),
+        )
 
-      // '장애인' 또는 '휠체어' 키워드가 포함되어 있으면 장애인용 화장실만 탐색
-      if (trimmed.includes('장애인') || trimmed.includes('휠체어')) {
-        const accessibleList = candidateList.filter((r) => r.floors.some((f) => f.accessible))
-        if (accessibleList.length > 0) {
-          candidateList = accessibleList
+        if (exactMatched.length > 0) {
+          candidateList = exactMatched
+        } else if (targetFloor) {
+          // 층 조건만 맞는 화장실 검색 시도
+          const floorMatched = candidateList.filter((r) => r.floors.some((f) => f.floor === targetFloor))
+          if (floorMatched.length > 0) {
+            candidateList = floorMatched
+          }
         }
       }
 
@@ -607,12 +633,14 @@ export function RestroomMap() {
         }
       }
 
-      openOverlayForRestroom(closest)
+      openOverlayForRestroom(closest, targetFloor ?? undefined)
       setMessage('')
       setIsSearching(false)
 
       const distText = minDistance > 1000 ? `${(minDistance / 1000).toFixed(1)}km` : `${Math.round(minDistance)}m`
-      setToastMessage(`가장 가까운 ${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
+      const floorDesc = targetFloor ? `${targetFloor} ` : ''
+      const featureDesc = hasBidetQuery ? '비데가 있는 ' : hasAccessibleQuery ? '장애인 화장실이 있는 ' : ''
+      setToastMessage(`가장 가까운 ${floorDesc}${featureDesc}${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
 
       setTimeout(() => setToastMessage(null), 4500)
     }
