@@ -145,6 +145,56 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
   return R * c
 }
 
+// 변기(🚽) 아이콘이 포함된 커스텀 지도 핀 생성 (슬림한 올-그린 #0c4f34 핀)
+function createToiletPinElement() {
+  const skkuGreen = '#0c4f34'
+
+  const pinDiv = document.createElement('div')
+  pinDiv.style.cssText = `
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 32px;
+    transform: translate(-50%, -100%);
+    cursor: pointer;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+  `
+
+  pinDiv.innerHTML = `
+    <div style="
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    ">
+      <div style="
+        width: 24px;
+        height: 24px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        background: ${skkuGreen};
+        border: 1.5px solid rgba(255, 255, 255, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      ">
+        <span style="
+          transform: rotate(45deg);
+          font-size: 13px;
+          line-height: 1;
+          user-select: none;
+        ">🚽</span>
+      </div>
+    </div>
+  `
+
+  return pinDiv
+}
+
 export function RestroomMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const [message, setMessage] = useState('')
@@ -238,7 +288,7 @@ export function RestroomMap() {
     container.style.cssText = `
       position: relative;
       transform: translate(-50%, -100%);
-      margin-top: -38px;
+      margin-top: -32px;
       padding: 10px 14px;
       background: #ffffff;
       border: 1px solid rgba(0, 0, 0, 0.12);
@@ -462,10 +512,15 @@ export function RestroomMap() {
     const filtered = restrooms.filter((restroom) => restroom.gender === selectedGender)
 
     markersRef.current = filtered.map((restroom) => {
+      const pinElement = createToiletPinElement()
+
       const marker = new maps.Marker({
         map,
         position: new maps.LatLng(restroom.latitude, restroom.longitude),
         title: restroom.name,
+        icon: {
+          content: pinElement,
+        },
       })
 
       // 핀 클릭 시 해당 위치로 팝업 표시
