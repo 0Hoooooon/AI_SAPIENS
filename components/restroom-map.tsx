@@ -238,7 +238,7 @@ export function RestroomMap() {
     container.style.cssText = `
       position: relative;
       transform: translate(-50%, -100%);
-      margin-top: -10px;
+      margin-top: -38px;
       padding: 10px 14px;
       background: #ffffff;
       border: 1px solid rgba(0, 0, 0, 0.12);
@@ -256,17 +256,15 @@ export function RestroomMap() {
     container.addEventListener('touchstart', stopPropagation, { passive: true })
     container.addEventListener('pointerdown', stopPropagation)
 
-    // 건물/화장실 이름
-    const titleDiv = document.createElement('div')
-    titleDiv.style.cssText = 'font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
-    titleDiv.textContent = restroom.name
-    container.appendChild(titleDiv)
-
-    // 층 및 비데 정보 행 (1번째 줄)
+    // 1번째 줄: 위치 이름 + 층수
     const line1 = document.createElement('div')
-    line1.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569;'
+    line1.style.cssText = 'display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
 
-    // 층선택 (다중 층일 때 드롭다운 표시)
+    const titleSpan = document.createElement('span')
+    titleSpan.textContent = restroom.name
+    line1.appendChild(titleSpan)
+
+    // 층선택 (다중 층일 때 드롭다운 표시, 단일 층일 때 텍스트 표시)
     if (restroom.floors.length > 1) {
       const select = document.createElement('select')
       select.style.cssText = `
@@ -296,27 +294,26 @@ export function RestroomMap() {
       line1.appendChild(select)
     } else {
       const singleFloorSpan = document.createElement('span')
-      singleFloorSpan.style.cssText = 'font-weight: 500;'
-      singleFloorSpan.textContent = restroom.floors[0].floor
+      singleFloorSpan.style.cssText = 'font-size: 12px; font-weight: 600; color: #475569;'
+      singleFloorSpan.textContent = `(${restroom.floors[0].floor})`
       line1.appendChild(singleFloorSpan)
     }
 
-    const dotSpan = document.createElement('span')
-    dotSpan.style.color = '#cbd5e1'
-    dotSpan.textContent = '•'
-    line1.appendChild(dotSpan)
-
-    const bidetSpan = document.createElement('span')
-    line1.appendChild(bidetSpan)
     container.appendChild(line1)
 
-    // 장애인용 화장실 정보 행 (비데 밑 2번째 줄)
+    // 2번째 줄: 비데 유무
     const line2 = document.createElement('div')
-    line2.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px;'
-    
-    const accessibleSpan = document.createElement('span')
-    line2.appendChild(accessibleSpan)
+    line2.style.cssText = 'font-size: 12px; margin-bottom: 3px;'
+    const bidetSpan = document.createElement('span')
+    line2.appendChild(bidetSpan)
     container.appendChild(line2)
+
+    // 3번째 줄: 장애인용 화장실 유무
+    const line3 = document.createElement('div')
+    line3.style.cssText = 'font-size: 12px;'
+    const accessibleSpan = document.createElement('span')
+    line3.appendChild(accessibleSpan)
+    container.appendChild(line3)
 
     const updateBadges = (floor: FloorInfo) => {
       bidetSpan.innerHTML = floor.bidet
