@@ -371,7 +371,6 @@ export function RestroomMap() {
           zoom: 16,
           minZoom: 15,
           maxZoom: 18,
-          maxBounds: bounds,
         })
 
         // 이동 범위 제한 (캠퍼스 경계)
@@ -563,8 +562,8 @@ export function RestroomMap() {
   )
 
   return (
-    <main className="relative isolate min-h-dvh overflow-hidden bg-muted font-sans">
-      <div ref={mapContainerRef} className="absolute inset-0 z-0" aria-label="성균관대학교 자연과학캠퍼스 화장실 지도" />
+    <main className="relative isolate h-dvh h-screen w-full overflow-hidden bg-muted font-sans">
+      <div ref={mapContainerRef} className="absolute inset-0 h-full w-full z-0" aria-label="성균관대학교 자연과학캠퍼스 화장실 지도" />
 
       {mapError ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted p-6" role="alert">
