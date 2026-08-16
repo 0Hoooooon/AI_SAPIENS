@@ -386,9 +386,12 @@ export function RestroomMap() {
         ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
         : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
 
-      accessibleSpan.innerHTML = floor.accessible
-        ? '<span style="color: #2563eb; font-weight: 600;">장애인용 화장실 있음</span>'
-        : '<span style="color: #dc2626; font-weight: 600;">장애인용 화장실 없음</span>'
+      accessibleSpan.innerHTML =
+        floor.accessible === 'unisex'
+          ? '<span style="color: #8b5cf6; font-weight: 600;">장애인용(공용) 화장실 있음</span>'
+          : floor.accessible
+          ? '<span style="color: #2563eb; font-weight: 600;">장애인용 화장실 있음</span>'
+          : '<span style="color: #dc2626; font-weight: 600;">장애인용 화장실 없음</span>'
     }
 
     updateBadges(initialFloor)
@@ -769,6 +772,7 @@ export function RestroomMap() {
                   const walkMinutes = Math.max(1, Math.round(distMeters / 80))
                   const hasBidet = restroom.floors.some((f) => f.bidet)
                   const hasAccessible = restroom.floors.some((f) => f.accessible)
+                  const hasUnisexAccessible = restroom.floors.some((f) => f.accessible === 'unisex')
 
                   return (
                     <article
@@ -801,8 +805,18 @@ export function RestroomMap() {
                           )}
                           <span className="text-muted-foreground/40">•</span>
                           {hasAccessible ? (
-                            <span className="flex items-center gap-1 font-semibold text-blue-600">
-                              <Check className="size-3.5 stroke-[2.5] text-blue-600" aria-hidden="true" /> 장애인용 있음
+                            <span
+                              className={`flex items-center gap-1 font-semibold ${
+                                hasUnisexAccessible ? 'text-purple-600' : 'text-blue-600'
+                              }`}
+                            >
+                              <Check
+                                className={`size-3.5 stroke-[2.5] ${
+                                  hasUnisexAccessible ? 'text-purple-600' : 'text-blue-600'
+                                }`}
+                                aria-hidden="true"
+                              />{' '}
+                              {hasUnisexAccessible ? '장애인용(공용) 있음' : '장애인용 있음'}
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 font-semibold text-rose-600">

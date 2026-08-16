@@ -1,7 +1,7 @@
 export type FloorInfo = {
   floor: string
   bidet: boolean
-  accessible?: boolean
+  accessible?: boolean | 'unisex'
 }
 
 export type Restroom = {
@@ -159,5 +159,29 @@ export const restrooms: Restroom[] = [
     longitude: 126.973652,
     gender: 'female',
     floors: [{ floor: '1층', bidet: true, accessible: false }],
+  },
+  {
+    id: 14,
+    name: '학생회관1(남)',
+    latitude: 37.2937567,
+    longitude: 126.9735125,
+    gender: 'male',
+    floors: [
+      { floor: '1층', bidet: true, accessible: 'unisex' },
+      { floor: '2층', bidet: false, accessible: false },
+      { floor: '3층', bidet: false, accessible: false },
+    ],
+  },
+  {
+    id: 15,
+    name: '학생회관1(여)',
+    latitude: 37.2937567,
+    longitude: 126.9735125,
+    gender: 'female',
+    floors: [
+      { floor: '1층', bidet: true, accessible: 'unisex' },
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false },
+    ],
   },
 ]
