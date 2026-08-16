@@ -77,55 +77,55 @@ type NaverMaps = {
 declare global {
   interface Window {
     naver?: { maps: NaverMaps }
+    navermap_authFailure?: () => void
   }
 }
 
 function loadNaverMaps(clientId: string) {
   return new Promise<NaverMaps>((resolve, reject) => {
-    const existingMaps = window.naver?.maps
-    if (existingMaps) {
-      resolve(existingMaps)
+    if (window.naver?.maps) {
+      resolve(window.naver.maps)
       return
     }
 
     const existingScript = document.querySelector<HTMLScriptElement>('script[data-naver-map-sdk]')
-    const script = existingScript ?? document.createElement('script')
+    if (existingScript) {
+      const checkInterval = setInterval(() => {
+        if (window.naver?.maps) {
+          clearInterval(checkInterval)
+          resolve(window.naver.maps)
+        }
+      }, 50)
 
-    const timeout = window.setTimeout(() => {
-      reject(
-        new Error(
-          `네이버 지도 SDK 응답이 지연되고 있습니다. Naver Cloud Platform 콘솔의 Web 서비스 URL에 ${window.location.origin}이 등록되어 있는지 확인해 주세요.`,
-        ),
-      )
-    }, 10000)
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (window.naver?.maps) {
+          resolve(window.naver.maps)
+        } else {
+          reject(new Error('네이버 지도 SDK 로드 응답이 지연되고 있습니다.'))
+        }
+      }, 10000)
+      return
+    }
 
-    const handleLoad = () => {
-      window.clearTimeout(timeout)
-      if (!window.naver?.maps) {
+    const script = document.createElement('script')
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}`
+    script.async = true
+    script.dataset.naverMapSdk = 'true'
+
+    script.onload = () => {
+      if (window.naver?.maps) {
+        resolve(window.naver.maps)
+      } else {
         reject(new Error('네이버 지도 SDK를 불러오지 못했습니다.'))
-        return
       }
-      resolve(window.naver.maps)
     }
 
-    const handleError = () => {
-      window.clearTimeout(timeout)
-      reject(
-        new Error(
-          `네이버 지도 SDK 연결에 실패했습니다. Naver Cloud Platform 콘솔의 Web 서비스 URL에 ${window.location.origin}이 등록되어 있는지 확인해 주세요.`,
-        ),
-      )
+    script.onerror = () => {
+      reject(new Error('네이버 지도 SDK 연결에 실패했습니다.'))
     }
 
-    script.addEventListener('load', handleLoad, { once: true })
-    script.addEventListener('error', handleError, { once: true })
-
-    if (!existingScript) {
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${encodeURIComponent(clientId)}`
-      script.async = true
-      script.dataset.naverMapSdk = 'true'
-      document.head.appendChild(script)
-    }
+    document.head.appendChild(script)
   })
 }
 
@@ -355,6 +355,13 @@ export function RestroomMap() {
       return
     }
 
+    // 네이버 지도 인증 실패 시 네이버 SDK가 호출해주는 콜백
+    window.navermap_authFailure = () => {
+      setMapError(
+        '네이버 지도 Open API 인증 실패! Naver Cloud Platform 콘솔의 [Web 서비스 URL] 등록 상태나 [Web Dynamic Map] 상품 활성화 여부를 확인해 주세요.',
+      )
+    }
+
     let cancelled = false
 
     loadNaverMaps(clientId)
@@ -371,9 +378,10 @@ export function RestroomMap() {
           zoom: 16,
           minZoom: 15,
           maxZoom: 18,
+          maxBounds: bounds,
         })
 
-        // 이동 범위 제한 (캠퍼스 경계)
+        // 이동 범위 제한 (캠퍼스 경계 - 무한 루프 방지용 임계값 추가)
         maps.Event.addListener(map, 'center_changed', () => {
           const center = map.getCenter()
           const lat = center.lat()
@@ -382,7 +390,7 @@ export function RestroomMap() {
           const clampedLat = Math.max(CAMPUS_BOUNDS.sw.latitude, Math.min(CAMPUS_BOUNDS.ne.latitude, lat))
           const clampedLng = Math.max(CAMPUS_BOUNDS.sw.longitude, Math.min(CAMPUS_BOUNDS.ne.longitude, lng))
 
-          if (lat !== clampedLat || lng !== clampedLng) {
+          if (Math.abs(lat - clampedLat) > 0.0001 || Math.abs(lng - clampedLng) > 0.0001) {
             map.setCenter(new maps.LatLng(clampedLat, clampedLng))
           }
         })
@@ -398,6 +406,11 @@ export function RestroomMap() {
         naverMapsRef.current = maps
         mapInstanceRef.current = map
         setIsMapReady(true)
+
+        // 지도가 처음 로드될 때 컨테이너 크기 계산 오류로 인한 회색 화면 방지
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'))
+        }, 100)
       })
       .catch((error: unknown) => {
         if (!cancelled) {
