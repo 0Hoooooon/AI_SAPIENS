@@ -25,86 +25,105 @@ const CAMPUS_BOUNDS = {
 
 import { restrooms, type Restroom } from '@/lib/restrooms-data'
 
-type KakaoLatLng = new (latitude: number, longitude: number) => { getLat(): number; getLng(): number }
-type KakaoMapInstance = {
-  getCenter(): { getLat(): number; getLng(): number }
-  setCenter(latlng: unknown): void
-  setMinLevel(level: number): void
-  setMaxLevel(level: number): void
+type NaverLatLng = {
+  lat(): number
+  lng(): number
 }
-type KakaoMap = new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
-type KakaoMarkerInstance = { setMap: (map: KakaoMapInstance | null) => void }
-type KakaoMarker = new (options: { map: KakaoMapInstance | null; position: unknown; title: string }) => KakaoMarkerInstance
-type KakaoCustomOverlayInstance = { setMap: (map: KakaoMapInstance | null) => void }
-type KakaoCustomOverlay = new (options: {
-  map?: KakaoMapInstance | null
-  position: unknown
-  content: HTMLElement | string
-  xAnchor?: number
-  yAnchor?: number
-  zIndex?: number
-}) => KakaoCustomOverlayInstance
 
-type KakaoMaps = {
-  load: (callback: () => void) => void
-  LatLng: KakaoLatLng
-  Map: KakaoMap
-  Marker: KakaoMarker
-  CustomOverlay: KakaoCustomOverlay
-  event: {
-    addListener: (target: unknown, type: string, callback: () => void) => void
-  }
+type NaverLatLngBounds = unknown
+
+type NaverMapInstance = {
+  getCenter(): NaverLatLng
+  setCenter(latlng: unknown): void
+  setZoom(zoom: number): void
+  getZoom(): number
+}
+
+type NaverMarkerInstance = {
+  setMap(map: NaverMapInstance | null): void
+}
+
+type NaverEvent = {
+  addListener(target: unknown, eventName: string, listener: (e?: unknown) => void): unknown
+}
+
+type NaverMaps = {
+  LatLng: new (lat: number, lng: number) => NaverLatLng
+  LatLngBounds: new (sw: NaverLatLng, ne: NaverLatLng) => NaverLatLngBounds
+  Map: new (
+    container: HTMLElement,
+    options: {
+      center: NaverLatLng
+      zoom?: number
+      minZoom?: number
+      maxZoom?: number
+      maxBounds?: NaverLatLngBounds
+    },
+  ) => NaverMapInstance
+  Marker: new (options: {
+    map: NaverMapInstance | null
+    position: NaverLatLng
+    title?: string
+    icon?: {
+      content: HTMLElement | string
+      anchor?: unknown
+    }
+    zIndex?: number
+  }) => NaverMarkerInstance
+  Point: new (x: number, y: number) => unknown
+  Event: NaverEvent
 }
 
 declare global {
   interface Window {
-    kakao?: { maps: KakaoMaps }
+    naver?: { maps: NaverMaps }
   }
 }
 
-function loadKakaoMaps(appKey: string) {
-  return new Promise<KakaoMaps>((resolve, reject) => {
-    const existingMaps = window.kakao?.maps
+function loadNaverMaps(clientId: string) {
+  return new Promise<NaverMaps>((resolve, reject) => {
+    const existingMaps = window.naver?.maps
     if (existingMaps) {
-      existingMaps.load(() => resolve(existingMaps))
+      resolve(existingMaps)
       return
     }
 
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-kakao-map-sdk]')
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-naver-map-sdk]')
     const script = existingScript ?? document.createElement('script')
 
     const timeout = window.setTimeout(() => {
       reject(
         new Error(
-          `카카오맵 SDK 응답이 지연되고 있습니다. 카카오 개발자 콘솔의 Web 사이트 도메인에 ${window.location.origin}을 등록해 주세요.`,
+          `네이버 지도 SDK 응답이 지연되고 있습니다. Naver Cloud Platform 콘솔의 Web 서비스 URL에 ${window.location.origin}이 등록되어 있는지 확인해 주세요.`,
         ),
       )
     }, 10000)
 
     const handleLoad = () => {
       window.clearTimeout(timeout)
-      if (!window.kakao?.maps) {
-        reject(new Error('카카오맵 SDK를 불러오지 못했습니다.'))
+      if (!window.naver?.maps) {
+        reject(new Error('네이버 지도 SDK를 불러오지 못했습니다.'))
         return
       }
-      window.kakao.maps.load(() => resolve(window.kakao!.maps))
+      resolve(window.naver.maps)
     }
 
     const handleError = () => {
       window.clearTimeout(timeout)
       reject(
         new Error(
-          `카카오맵 SDK 연결에 실패했습니다. 카카오 개발자 콘솔의 Web 사이트 도메인에 ${window.location.origin}을 등록해 주세요.`,
+          `네이버 지도 SDK 연결에 실패했습니다. Naver Cloud Platform 콘솔의 Web 서비스 URL에 ${window.location.origin}이 등록되어 있는지 확인해 주세요.`,
         ),
       )
     }
+
     script.addEventListener('load', handleLoad, { once: true })
     script.addEventListener('error', handleError, { once: true })
 
     if (!existingScript) {
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${encodeURIComponent(clientId)}`
       script.async = true
-      script.dataset.kakaoMapSdk = 'true'
+      script.dataset.naverMapSdk = 'true'
       document.head.appendChild(script)
     }
   })
@@ -137,15 +156,15 @@ export function RestroomMap() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null)
 
-  const kakaoMapsRef = useRef<KakaoMaps | null>(null)
-  const mapInstanceRef = useRef<KakaoMapInstance | null>(null)
-  const markersRef = useRef<KakaoMarkerInstance[]>([])
-  const currentOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
-  const userLocationOverlayRef = useRef<KakaoCustomOverlayInstance | null>(null)
+  const naverMapsRef = useRef<NaverMaps | null>(null)
+  const mapInstanceRef = useRef<NaverMapInstance | null>(null)
+  const markersRef = useRef<NaverMarkerInstance[]>([])
+  const currentOverlayRef = useRef<NaverMarkerInstance | null>(null)
+  const userLocationOverlayRef = useRef<NaverMarkerInstance | null>(null)
 
   const showUserLocationOnMap = (lat: number, lng: number) => {
     setUserCoords({ latitude: lat, longitude: lng })
-    const maps = kakaoMapsRef.current
+    const maps = naverMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
 
@@ -163,6 +182,7 @@ export function RestroomMap() {
       display: flex;
       align-items: center;
       justify-content: center;
+      transform: translate(-50%, -50%);
     `
 
     userDotElement.innerHTML = `
@@ -185,12 +205,12 @@ export function RestroomMap() {
       "></div>
     `
 
-    const userOverlay = new maps.CustomOverlay({
+    const userOverlay = new maps.Marker({
       map,
       position: new maps.LatLng(lat, lng),
-      content: userDotElement,
-      xAnchor: 0.5,
-      yAnchor: 0.5,
+      icon: {
+        content: userDotElement,
+      },
       zIndex: 4,
     })
 
@@ -198,7 +218,7 @@ export function RestroomMap() {
   }
 
   const openOverlayForRestroom = (restroom: Restroom) => {
-    const maps = kakaoMapsRef.current
+    const maps = naverMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
 
@@ -217,7 +237,8 @@ export function RestroomMap() {
     const container = document.createElement('div')
     container.style.cssText = `
       position: relative;
-      bottom: 36px;
+      transform: translate(-50%, -100%);
+      margin-top: -10px;
       padding: 10px 14px;
       background: #ffffff;
       border: 1px solid rgba(0, 0, 0, 0.12);
@@ -312,13 +333,13 @@ export function RestroomMap() {
     `
     container.appendChild(tail)
 
-    const overlay = new maps.CustomOverlay({
+    const overlay = new maps.Marker({
       map,
       position,
-      content: container,
-      xAnchor: 0.5,
-      yAnchor: 1.0,
-      zIndex: 3,
+      icon: {
+        content: container,
+      },
+      zIndex: 10,
     })
 
     currentOverlayRef.current = overlay
@@ -326,34 +347,38 @@ export function RestroomMap() {
 
   useEffect(() => {
     const container = mapContainerRef.current
-    const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
+    const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID
     if (!container) return
 
-    if (!appKey) {
-      setMapError('카카오맵 API 키가 설정되지 않았습니다.')
+    if (!clientId) {
+      setMapError('네이버 지도 API Client ID가 설정되지 않았습니다.')
       return
     }
 
     let cancelled = false
 
-    loadKakaoMaps(appKey)
+    loadNaverMaps(clientId)
       .then((maps) => {
         if (cancelled) return
 
+        const bounds = new maps.LatLngBounds(
+          new maps.LatLng(CAMPUS_BOUNDS.sw.latitude, CAMPUS_BOUNDS.sw.longitude),
+          new maps.LatLng(CAMPUS_BOUNDS.ne.latitude, CAMPUS_BOUNDS.ne.longitude),
+        )
+
         const map = new maps.Map(container, {
           center: new maps.LatLng(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude),
-          level: 3,
+          zoom: 16,
+          minZoom: 15,
+          maxZoom: 18,
+          maxBounds: bounds,
         })
 
-        // 확대/축소 범위 제한
-        map.setMinLevel(1)
-        map.setMaxLevel(3)
-
         // 이동 범위 제한 (캠퍼스 경계)
-        maps.event.addListener(map, 'center_changed', () => {
+        maps.Event.addListener(map, 'center_changed', () => {
           const center = map.getCenter()
-          const lat = center.getLat()
-          const lng = center.getLng()
+          const lat = center.lat()
+          const lng = center.lng()
 
           const clampedLat = Math.max(CAMPUS_BOUNDS.sw.latitude, Math.min(CAMPUS_BOUNDS.ne.latitude, lat))
           const clampedLng = Math.max(CAMPUS_BOUNDS.sw.longitude, Math.min(CAMPUS_BOUNDS.ne.longitude, lng))
@@ -364,14 +389,14 @@ export function RestroomMap() {
         })
 
         // 지도 바탕 클릭 시 열려있는 팝업 닫기
-        maps.event.addListener(map, 'click', () => {
+        maps.Event.addListener(map, 'click', () => {
           if (currentOverlayRef.current) {
             currentOverlayRef.current.setMap(null)
             currentOverlayRef.current = null
           }
         })
 
-        kakaoMapsRef.current = maps
+        naverMapsRef.current = maps
         mapInstanceRef.current = map
         setIsMapReady(true)
       })
@@ -398,7 +423,7 @@ export function RestroomMap() {
 
   // 성별 선택 변경 시 지도 마커 및 팝업 이벤트 업데이트
   useEffect(() => {
-    const maps = kakaoMapsRef.current
+    const maps = naverMapsRef.current
     const map = mapInstanceRef.current
     if (!isMapReady || !maps || !map) return
 
@@ -423,7 +448,7 @@ export function RestroomMap() {
       })
 
       // 핀 클릭 시 해당 위치로 팝업 표시
-      maps.event.addListener(marker, 'click', () => {
+      maps.Event.addListener(marker, 'click', () => {
         openOverlayForRestroom(restroom)
       })
 
@@ -442,7 +467,7 @@ export function RestroomMap() {
       (position) => {
         const lat = position.coords.latitude
         const lng = position.coords.longitude
-        const maps = kakaoMapsRef.current
+        const maps = naverMapsRef.current
         const map = mapInstanceRef.current
 
         showUserLocationOnMap(lat, lng)
