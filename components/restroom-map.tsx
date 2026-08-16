@@ -844,7 +844,7 @@ export function RestroomMap() {
                   id="chat-message"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
-                  placeholder="예: 비데 있는 가장 가까운 곳은?"
+                  placeholder="예: 근처 3층 비데 있는 화장실 찾아줘"
                   className="h-11 flex-1 border-0 bg-transparent px-3 shadow-none focus-visible:ring-0"
                   autoComplete="off"
                 />
