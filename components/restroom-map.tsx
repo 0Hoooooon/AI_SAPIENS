@@ -262,15 +262,15 @@ export function RestroomMap() {
     titleDiv.textContent = restroom.name
     container.appendChild(titleDiv)
 
-    // 세부 정보 행
-    const rowDiv = document.createElement('div')
-    rowDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 12px; color: #475569;'
+    // 층 및 비데 정보 행 (1번째 줄)
+    const line1 = document.createElement('div')
+    line1.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569;'
 
     // 층선택 (다중 층일 때 드롭다운 표시)
     if (restroom.floors.length > 1) {
       const select = document.createElement('select')
       select.style.cssText = `
-        padding: 3px 8px;
+        padding: 2px 6px;
         font-size: 12px;
         font-weight: 600;
         color: #0f172a;
@@ -293,34 +293,42 @@ export function RestroomMap() {
         updateBadges(targetFloor)
       })
 
-      rowDiv.appendChild(select)
+      line1.appendChild(select)
     } else {
       const singleFloorSpan = document.createElement('span')
       singleFloorSpan.style.cssText = 'font-weight: 500;'
       singleFloorSpan.textContent = restroom.floors[0].floor
-      rowDiv.appendChild(singleFloorSpan)
+      line1.appendChild(singleFloorSpan)
     }
 
     const dotSpan = document.createElement('span')
     dotSpan.style.color = '#cbd5e1'
     dotSpan.textContent = '•'
-    rowDiv.appendChild(dotSpan)
+    line1.appendChild(dotSpan)
 
-    // 비데 & 장애인용 화장실 유무 표시
-    const badgeSpan = document.createElement('span')
+    const bidetSpan = document.createElement('span')
+    line1.appendChild(bidetSpan)
+    container.appendChild(line1)
+
+    // 장애인용 화장실 정보 행 (비데 밑 2번째 줄)
+    const line2 = document.createElement('div')
+    line2.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px;'
+    
+    const accessibleSpan = document.createElement('span')
+    line2.appendChild(accessibleSpan)
+    container.appendChild(line2)
+
     const updateBadges = (floor: FloorInfo) => {
-      const bidetHtml = floor.bidet
+      bidetSpan.innerHTML = floor.bidet
         ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
         : '<span style="color: #dc2626; font-weight: 600;">비데 없음</span>'
-      const accessibleHtml = floor.accessible
-        ? '<span style="color: #2563eb; font-weight: 600;"> • 장애인용 있음</span>'
-        : '<span style="color: #64748b; font-weight: 500;"> • 장애인용 없음</span>'
-      badgeSpan.innerHTML = bidetHtml + accessibleHtml
-    }
-    updateBadges(initialFloor)
-    rowDiv.appendChild(badgeSpan)
 
-    container.appendChild(rowDiv)
+      accessibleSpan.innerHTML = floor.accessible
+        ? '<span style="color: #2563eb; font-weight: 600;">장애인용 화장실 있음</span>'
+        : '<span style="color: #dc2626; font-weight: 600;">장애인용 화장실 없음</span>'
+    }
+
+    updateBadges(initialFloor)
 
     // 말풍선 아래 화살표
     const tail = document.createElement('div')
@@ -717,8 +725,8 @@ export function RestroomMap() {
                               <Check className="size-3.5 stroke-[2.5] text-blue-600" aria-hidden="true" /> 장애인용 있음
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 font-medium text-muted-foreground">
-                              <X className="size-3.5 stroke-[2.5] text-muted-foreground" aria-hidden="true" /> 장애인용 없음
+                            <span className="flex items-center gap-1 font-semibold text-rose-600">
+                              <X className="size-3.5 stroke-[2.5] text-rose-600" aria-hidden="true" /> 장애인용 없음
                             </span>
                           )}
                         </div>
