@@ -51,7 +51,7 @@ export const restrooms: Restroom[] = [
     longitude: 126.9736547,
     gender: 'male',
     floors: [
-      { floor: '1층', bidet: false, accessible: true },
+      { floor: '1층', bidet: false, accessible: false },
       { floor: '3층', bidet: true, accessible: false },
     ],
   },
@@ -158,7 +158,10 @@ export const restrooms: Restroom[] = [
     latitude: 37.2943948,
     longitude: 126.973652,
     gender: 'female',
-    floors: [{ floor: '1층', bidet: true, accessible: false }],
+    floors: [
+      { floor: '1층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false },
+    ],
   },
   {
     id: 14,
