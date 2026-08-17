@@ -11,6 +11,7 @@ export type Restroom = {
   longitude: number
   gender: 'male' | 'female'
   floors: FloorInfo[]
+  campus?: 'nsc' | 'hssc'
 }
 
 export const restrooms: Restroom[] = [

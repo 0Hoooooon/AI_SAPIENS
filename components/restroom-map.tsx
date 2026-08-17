@@ -15,12 +15,25 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-const CAMPUS_CENTER = { latitude: 37.2936, longitude: 126.9748 }
-
-// 학교 영역 경계 좌표 (성균관대 자연과학캠퍼스 기준 - 모바일 드래그 여유 범위 확대)
-const CAMPUS_BOUNDS = {
-  sw: { latitude: 37.2870, longitude: 126.9670 },
-  ne: { latitude: 37.3010, longitude: 126.9820 },
+const CAMPUS_CONFIGS = {
+  nsc: {
+    name: '자연과학캠퍼스',
+    shortName: '자과',
+    center: { latitude: 37.2936, longitude: 126.9748 },
+    bounds: {
+      sw: { latitude: 37.287, longitude: 126.967 },
+      ne: { latitude: 37.301, longitude: 126.982 },
+    },
+  },
+  hssc: {
+    name: '인문사회캠퍼스',
+    shortName: '인사',
+    center: { latitude: 37.5882, longitude: 126.9936 },
+    bounds: {
+      sw: { latitude: 37.58, longitude: 126.985 },
+      ne: { latitude: 37.597, longitude: 127.003 },
+    },
+  },
 }
 
 import { restrooms, type Restroom } from '@/lib/restrooms-data'
@@ -213,6 +226,9 @@ export function RestroomMap() {
   const [message, setMessage] = useState('')
   const [mapError, setMapError] = useState<string | null>(null)
   const [selectedGender, setSelectedGender] = useState<'male' | 'female'>('male')
+  const [selectedCampus, setSelectedCampus] = useState<'nsc' | 'hssc'>('nsc')
+  const selectedCampusRef = useRef(selectedCampus)
+  selectedCampusRef.current = selectedCampus
   const [isMapReady, setIsMapReady] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -495,31 +511,18 @@ export function RestroomMap() {
       .then((maps) => {
         if (cancelled) return
 
+        const initialCampus = CAMPUS_CONFIGS[selectedCampusRef.current]
         const bounds = new maps.LatLngBounds(
-          new maps.LatLng(CAMPUS_BOUNDS.sw.latitude, CAMPUS_BOUNDS.sw.longitude),
-          new maps.LatLng(CAMPUS_BOUNDS.ne.latitude, CAMPUS_BOUNDS.ne.longitude),
+          new maps.LatLng(initialCampus.bounds.sw.latitude, initialCampus.bounds.sw.longitude),
+          new maps.LatLng(initialCampus.bounds.ne.latitude, initialCampus.bounds.ne.longitude),
         )
 
         const map = new maps.Map(container, {
-          center: new maps.LatLng(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude),
+          center: new maps.LatLng(initialCampus.center.latitude, initialCampus.center.longitude),
           zoom: 16,
-          minZoom: 15,
-          maxZoom: 18,
+          minZoom: 14,
+          maxZoom: 19,
           maxBounds: bounds,
-        })
-
-        // 이동 범위 제한 (캠퍼스 경계 - 무한 루프 방지용 임계값 추가)
-        maps.Event.addListener(map, 'center_changed', () => {
-          const center = map.getCenter()
-          const lat = center.lat()
-          const lng = center.lng()
-
-          const clampedLat = Math.max(CAMPUS_BOUNDS.sw.latitude, Math.min(CAMPUS_BOUNDS.ne.latitude, lat))
-          const clampedLng = Math.max(CAMPUS_BOUNDS.sw.longitude, Math.min(CAMPUS_BOUNDS.ne.longitude, lng))
-
-          if (Math.abs(lat - clampedLat) > 0.0001 || Math.abs(lng - clampedLng) > 0.0001) {
-            map.setCenter(new maps.LatLng(clampedLat, clampedLng))
-          }
         })
 
         // 지도 바탕 클릭 시 열려있는 팝업 닫기
@@ -576,8 +579,10 @@ export function RestroomMap() {
     markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current = []
 
-    // 선택된 성별 화장실만 필터링 후 마커 등록 및 핀 클릭 이벤트 추가
-    const filtered = restrooms.filter((restroom) => restroom.gender === selectedGender)
+    // 선택된 성별 & 캠퍼스 화장실만 필터링 후 마커 등록 및 핀 클릭 이벤트 추가
+    const filtered = restrooms.filter(
+      (restroom) => restroom.gender === selectedGender && (restroom.campus ?? 'nsc') === selectedCampus,
+    )
 
     markersRef.current = filtered.map((restroom) => {
       const pinElement = createToiletPinElement()
@@ -598,7 +603,27 @@ export function RestroomMap() {
 
       return marker
     })
-  }, [selectedGender, isMapReady])
+  }, [selectedGender, selectedCampus, isMapReady])
+
+  const handleCampusChange = (campusKey: 'nsc' | 'hssc') => {
+    setSelectedCampus(campusKey)
+    selectedCampusRef.current = campusKey
+
+    const map = mapInstanceRef.current
+    const maps = naverMapsRef.current
+    if (map && maps) {
+      const config = CAMPUS_CONFIGS[campusKey]
+      const newBounds = new maps.LatLngBounds(
+        new maps.LatLng(config.bounds.sw.latitude, config.bounds.sw.longitude),
+        new maps.LatLng(config.bounds.ne.latitude, config.bounds.ne.longitude),
+      )
+      const newCenter = new maps.LatLng(config.center.latitude, config.center.longitude)
+
+      map.setCenter(newCenter)
+      map.setZoom(16)
+      map.setOptions({ maxBounds: newBounds })
+    }
+  }
 
   const handleGetCurrentLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -644,7 +669,9 @@ export function RestroomMap() {
       const hasBidetQuery = trimmed.includes('비데')
       const hasAccessibleQuery = trimmed.includes('장애인') || trimmed.includes('휠체어')
 
-      let candidateList = restrooms.filter((r) => r.gender === selectedGender)
+      let candidateList = restrooms.filter(
+        (r) => r.gender === selectedGender && (r.campus ?? 'nsc') === selectedCampus,
+      )
 
       // 층수 (기본 1층) + 비데 + 장애인화장실 조건 검색
       const exactMatched = candidateList.filter((r) =>
@@ -707,13 +734,15 @@ export function RestroomMap() {
           findAndShowClosest(position.coords.latitude, position.coords.longitude)
         },
         () => {
-          // GPS 권한 거부 또는 획득 실패 시 캠퍼스 중심점 기준으로 계산
-          findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
+          // GPS 권한 거부 또는 획득 실패 시 활성 캠퍼스 중심점 기준으로 계산
+          const campusCenter = CAMPUS_CONFIGS[selectedCampusRef.current].center
+          findAndShowClosest(campusCenter.latitude, campusCenter.longitude)
         },
         { enableHighAccuracy: true, timeout: 5000 },
       )
     } else {
-      findAndShowClosest(CAMPUS_CENTER.latitude, CAMPUS_CENTER.longitude)
+      const campusCenter = CAMPUS_CONFIGS[selectedCampusRef.current].center
+      findAndShowClosest(campusCenter.latitude, campusCenter.longitude)
     }
   }
 
@@ -722,8 +751,11 @@ export function RestroomMap() {
     openOverlayForRestroom(restroom)
   }
 
-  const refCoords = userCoords ?? CAMPUS_CENTER
-  const filteredRestrooms = restrooms.filter((restroom) => restroom.gender === selectedGender)
+  const activeCampus = CAMPUS_CONFIGS[selectedCampus]
+  const refCoords = userCoords ?? activeCampus.center
+  const filteredRestrooms = restrooms.filter(
+    (restroom) => restroom.gender === selectedGender && (restroom.campus ?? 'nsc') === selectedCampus,
+  )
   const nearby100mRestrooms = filteredRestrooms.filter(
     (restroom) =>
       getDistanceInMeters(refCoords.latitude, refCoords.longitude, restroom.latitude, restroom.longitude) <= 100,
@@ -731,7 +763,7 @@ export function RestroomMap() {
 
   return (
     <main className="relative isolate h-dvh h-screen w-full overflow-hidden bg-muted font-sans">
-      <div ref={mapContainerRef} className="absolute inset-0 h-full w-full z-0" aria-label="성균관대학교 자연과학캠퍼스 화장실 지도" />
+      <div ref={mapContainerRef} className="absolute inset-0 h-full w-full z-0" aria-label="성균관대학교 화장실 지도" />
 
       {mapError ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted p-6" role="alert">
@@ -751,13 +783,49 @@ export function RestroomMap() {
       ) : null}
 
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="rounded-xl bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
-          <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
-          <p className="text-xs font-medium text-emerald-700">
-            {userCoords
-              ? `가까운 화장실 ${nearby100mRestrooms.length}곳 (반경 100m)`
-              : '현위치 버튼을 눌러주세요!'}
-          </p>
+        <div className="flex items-center gap-2">
+          {/* 캠퍼스 선택 스위치 (자과: 파란색 / 인사: 연녹색) */}
+          <div
+            className="pointer-events-auto flex items-center rounded-xl border bg-background/95 p-1 shadow-md backdrop-blur-sm"
+            role="radiogroup"
+            aria-label="캠퍼스 선택"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedCampus === 'nsc'}
+              onClick={() => handleCampusChange('nsc')}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all ${
+                selectedCampus === 'nsc'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              자과
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedCampus === 'hssc'}
+              onClick={() => handleCampusChange('hssc')}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all ${
+                selectedCampus === 'hssc'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              인사
+            </button>
+          </div>
+
+          <div className="rounded-xl bg-background/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+            <p className="text-xs font-semibold text-foreground">{activeCampus.name}</p>
+            <p className="text-[11px] font-medium text-emerald-700">
+              {userCoords
+                ? `가까운 화장실 ${nearby100mRestrooms.length}곳 (반경 100m)`
+                : '현위치 버튼을 눌러주세요!'}
+            </p>
+          </div>
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
