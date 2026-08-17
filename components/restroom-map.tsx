@@ -640,30 +640,33 @@ export function RestroomMap() {
 
     const findAndShowClosest = (userLat: number, userLng: number) => {
       const targetFloor = extractFloorFromQuery(trimmed)
+      const effectiveFloor = targetFloor ?? '1층'
       const hasBidetQuery = trimmed.includes('비데')
       const hasAccessibleQuery = trimmed.includes('장애인') || trimmed.includes('휠체어')
 
       let candidateList = restrooms.filter((r) => r.gender === selectedGender)
 
-      // 층수 / 비데 / 장애인화장실 조건 검색
-      if (targetFloor || hasBidetQuery || hasAccessibleQuery) {
-        const exactMatched = candidateList.filter((r) =>
+      // 층수 (기본 1층) + 비데 + 장애인화장실 조건 검색
+      const exactMatched = candidateList.filter((r) =>
+        r.floors.some(
+          (f) =>
+            f.floor === effectiveFloor &&
+            (!hasBidetQuery || f.bidet) &&
+            (!hasAccessibleQuery || f.accessible),
+        ),
+      )
+
+      if (exactMatched.length > 0) {
+        candidateList = exactMatched
+      } else {
+        // 지정된 층(또는 1층)에 비데/장애인 조건이 없을 경우, 비데/장애인 조건만 만족하는 화장실 검색
+        const featureMatched = candidateList.filter((r) =>
           r.floors.some(
-            (f) =>
-              (!targetFloor || f.floor === targetFloor) &&
-              (!hasBidetQuery || f.bidet) &&
-              (!hasAccessibleQuery || f.accessible),
+            (f) => (!hasBidetQuery || f.bidet) && (!hasAccessibleQuery || f.accessible),
           ),
         )
-
-        if (exactMatched.length > 0) {
-          candidateList = exactMatched
-        } else if (targetFloor) {
-          // 층 조건만 맞는 화장실 검색 시도
-          const floorMatched = candidateList.filter((r) => r.floors.some((f) => f.floor === targetFloor))
-          if (floorMatched.length > 0) {
-            candidateList = floorMatched
-          }
+        if (featureMatched.length > 0) {
+          candidateList = featureMatched
         }
       }
 
@@ -685,12 +688,12 @@ export function RestroomMap() {
         }
       }
 
-      openOverlayForRestroom(closest, targetFloor ?? undefined)
+      openOverlayForRestroom(closest, effectiveFloor)
       setMessage('')
       setIsSearching(false)
 
       const distText = minDistance > 1000 ? `${(minDistance / 1000).toFixed(1)}km` : `${Math.round(minDistance)}m`
-      const floorDesc = targetFloor ? `${targetFloor} ` : ''
+      const floorDesc = `${effectiveFloor} `
       const featureDesc = hasBidetQuery ? '비데가 있는 ' : hasAccessibleQuery ? '장애인 화장실이 있는 ' : ''
       setToastMessage(`가장 가까운 ${floorDesc}${featureDesc}${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
 
