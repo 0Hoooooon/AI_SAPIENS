@@ -202,8 +202,8 @@ export const restrooms: Restroom[] = [
   {
     id: 17,
     name: '생명공학관2(남)',
-    latitude: 37.295862714863674,
-    longitude: 126.973603067475,
+    latitude: 37.2958510,
+    longitude: 126.9736734,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: false, accessible: false },
@@ -214,8 +214,8 @@ export const restrooms: Restroom[] = [
   {
     id: 18,
     name: '기초학문관1(남)',
-    latitude: 37.2954415312888,
-    longitude: 126.9738344191286,
+    latitude: 37.2954306,
+    longitude: 126.9737847,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: true, accessible: false },
@@ -225,8 +225,8 @@ export const restrooms: Restroom[] = [
   {
     id: 19,
     name: '기초학문관2(남)',
-    latitude: 37.295383024627824,
-    longitude: 126.9741107567304,
+    latitude: 37.2953709,
+    longitude: 126.9740919,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: false, accessible: false },
@@ -237,8 +237,8 @@ export const restrooms: Restroom[] = [
   {
     id: 20,
     name: '제2과학관1(남)',
-    latitude: 37.29497082098258,
-    longitude: 126.97420676266694,
+    latitude: 37.2949569,
+    longitude: 126.9742059,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: true, accessible: false },
@@ -248,8 +248,8 @@ export const restrooms: Restroom[] = [
   {
     id: 21,
     name: '제2과학관2(남)',
-    latitude: 37.29492357641386,
-    longitude: 126.97448309445464,
+    latitude: 37.2949036,
+    longitude: 126.9745022,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: true, accessible: false },
@@ -271,8 +271,8 @@ export const restrooms: Restroom[] = [
   {
     id: 23,
     name: '제1과학관1(남)',
-    latitude: 37.29448885557374,
-    longitude: 126.97462139832062,
+    latitude: 37.2944790,
+    longitude: 126.9746162,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: false, accessible: false },
@@ -283,8 +283,8 @@ export const restrooms: Restroom[] = [
   {
     id: 24,
     name: '제1과학관2(남)',
-    latitude: 37.29445735661698,
-    longitude: 126.97479621976981,
+    latitude: 37.2944374,
+    longitude: 126.9748549,
     gender: 'male',
     floors: [
       { floor: '1층', bidet: true, accessible: false },
