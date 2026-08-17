@@ -287,7 +287,7 @@ export function RestroomMap() {
   const naverMapsRef = useRef<NaverMaps | null>(null)
   const mapInstanceRef = useRef<NaverMapInstance | null>(null)
   const markersRef = useRef<NaverMarkerInstance[]>([])
-  const currentOverlayRef = useRef<NaverMarkerInstance | null>(null)
+  const currentOverlaysRef = useRef<unknown[]>([])
   const userLocationOverlayRef = useRef<NaverMarkerInstance | null>(null)
 
   const showUserLocationOnMap = (lat: number, lng: number) => {
@@ -345,20 +345,27 @@ export function RestroomMap() {
     userLocationOverlayRef.current = userOverlay
   }
 
-  const openOverlayForRestroom = (restroom: Restroom, defaultFloor?: string) => {
+  const clearAllOverlays = () => {
+    currentOverlaysRef.current.forEach((overlay) => (overlay as { setMap: (m: unknown) => void }).setMap(null))
+    currentOverlaysRef.current = []
+  }
+
+  const openOverlayForRestroom = (
+    restroom: Restroom,
+    defaultFloor?: string,
+    rankLabel?: string,
+    keepExisting = false,
+  ) => {
     const maps = naverMapsRef.current
     const map = mapInstanceRef.current
     if (!maps || !map) return
 
-    // 열려있는 팝업 제거
-    if (currentOverlayRef.current) {
-      currentOverlayRef.current.setMap(null)
-      currentOverlayRef.current = null
-    }
-
-    // 지도 중심을 선택한 화장실 위치로 이동
     const position = new maps.LatLng(restroom.latitude, restroom.longitude)
-    map.setCenter(position)
+
+    if (!keepExisting) {
+      clearAllOverlays()
+      map.setCenter(position)
+    }
 
     const initialFloor = (defaultFloor && restroom.floors.find((f) => f.floor === defaultFloor)) || restroom.floors[0]
 
@@ -384,9 +391,24 @@ export function RestroomMap() {
     container.addEventListener('touchstart', stopPropagation, { passive: true })
     container.addEventListener('pointerdown', stopPropagation)
 
-    // 1번째 줄: 위치 이름 + 층수
+    // 1번째 줄: 순위 배지 + 위치 이름 + 층수
     const line1 = document.createElement('div')
     line1.style.cssText = 'display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 6px;'
+
+    if (rankLabel) {
+      const rankSpan = document.createElement('span')
+      const isFirst = rankLabel.includes('1')
+      rankSpan.style.cssText = `
+        padding: 2px 6px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #ffffff;
+        background-color: ${isFirst ? '#2563eb' : '#059669'};
+        border-radius: 6px;
+      `
+      rankSpan.textContent = rankLabel
+      line1.appendChild(rankSpan)
+    }
 
     const titleSpan = document.createElement('span')
     titleSpan.textContent = restroom.name
@@ -485,7 +507,7 @@ export function RestroomMap() {
       zIndex: 10,
     })
 
-    currentOverlayRef.current = overlay
+    currentOverlaysRef.current.push(overlay)
   }
 
   useEffect(() => {
@@ -525,13 +547,10 @@ export function RestroomMap() {
           maxBounds: bounds,
         })
 
-        // 지도 바탕 클릭 시 열려있는 팝업 닫기
-        maps.Event.addListener(map, 'click', () => {
-          if (currentOverlayRef.current) {
-            currentOverlayRef.current.setMap(null)
-            currentOverlayRef.current = null
-          }
-        })
+    // 지도 바탕 클릭 시 열려있는 팝업 닫기
+    maps.Event.addListener(map, 'click', () => {
+      clearAllOverlays()
+    })
 
         naverMapsRef.current = maps
         mapInstanceRef.current = map
@@ -550,10 +569,7 @@ export function RestroomMap() {
 
     return () => {
       cancelled = true
-      if (currentOverlayRef.current) {
-        currentOverlayRef.current.setMap(null)
-        currentOverlayRef.current = null
-      }
+      clearAllOverlays()
       if (userLocationOverlayRef.current) {
         userLocationOverlayRef.current.setMap(null)
         userLocationOverlayRef.current = null
@@ -570,10 +586,7 @@ export function RestroomMap() {
     if (!isMapReady || !maps || !map) return
 
     // 열려있는 팝업 제거
-    if (currentOverlayRef.current) {
-      currentOverlayRef.current.setMap(null)
-      currentOverlayRef.current = null
-    }
+    clearAllOverlays()
 
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null))
@@ -722,28 +735,62 @@ export function RestroomMap() {
         return
       }
 
-      // 현위치 기준 가장 가까운 화장실 계산
-      let closest = candidateList[0]
-      let minDistance = getDistanceInMeters(userLat, userLng, closest.latitude, closest.longitude)
+      // 현위치 기준 가까운 순으로 후보 정렬 및 상위 2개 추출
+      const sortedWithDist = candidateList
+        .map((r) => ({
+          restroom: r,
+          distance: getDistanceInMeters(userLat, userLng, r.latitude, r.longitude),
+        }))
+        .sort((a, b) => a.distance - b.distance)
 
-      for (let i = 1; i < candidateList.length; i++) {
-        const dist = getDistanceInMeters(userLat, userLng, candidateList[i].latitude, candidateList[i].longitude)
-        if (dist < minDistance) {
-          minDistance = dist
-          closest = candidateList[i]
-        }
+      const first = sortedWithDist[0]
+      const second = sortedWithDist[1]
+
+      clearAllOverlays()
+
+      openOverlayForRestroom(first.restroom, effectiveFloor, '1등', true)
+      if (second) {
+        openOverlayForRestroom(second.restroom, effectiveFloor, '2등', true)
       }
 
-      openOverlayForRestroom(closest, effectiveFloor)
+      const maps = naverMapsRef.current
+      const map = mapInstanceRef.current
+
+      if (maps && map) {
+        if (second) {
+          const bounds = new maps.LatLngBounds(
+            new maps.LatLng(
+              Math.min(first.restroom.latitude, second.restroom.latitude),
+              Math.min(first.restroom.longitude, second.restroom.longitude),
+            ),
+            new maps.LatLng(
+              Math.max(first.restroom.latitude, second.restroom.latitude),
+              Math.max(first.restroom.longitude, second.restroom.longitude),
+            ),
+          )
+          map.panToBounds(bounds, { top: 80, right: 50, bottom: 120, left: 50 })
+        } else {
+          map.setCenter(new maps.LatLng(first.restroom.latitude, first.restroom.longitude))
+        }
+      }
       setMessage('')
       setIsSearching(false)
 
-      const distText = minDistance > 1000 ? `${(minDistance / 1000).toFixed(1)}km` : `${Math.round(minDistance)}m`
+      const formatDist = (d: number) => (d > 1000 ? `${(d / 1000).toFixed(1)}km` : `${Math.round(d)}m`)
       const floorDesc = `${effectiveFloor} `
-      const featureDesc = hasBidetQuery ? '비데가 있는 ' : hasAccessibleQuery ? '장애인 화장실이 있는 ' : ''
-      setToastMessage(`가장 가까운 ${floorDesc}${featureDesc}${closest.name} (약 ${distText}) 위치로 안내해 드려요!`)
+      const featureDesc = hasBidetQuery ? '비데 ' : hasAccessibleQuery ? '장애인 ' : ''
 
-      setTimeout(() => setToastMessage(null), 4500)
+      if (second) {
+        setToastMessage(
+          `가장 가까운 ${floorDesc}${featureDesc}화장실: 1등 ${first.restroom.name} (${formatDist(first.distance)}), 2등 ${second.restroom.name} (${formatDist(second.distance)})`,
+        )
+      } else {
+        setToastMessage(
+          `가장 가까운 ${floorDesc}${featureDesc}화장실: ${first.restroom.name} (${formatDist(first.distance)})`,
+        )
+      }
+
+      setTimeout(() => setToastMessage(null), 5500)
     }
 
     if ('geolocation' in navigator) {
