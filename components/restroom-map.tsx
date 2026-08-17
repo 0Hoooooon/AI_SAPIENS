@@ -801,6 +801,12 @@ export function RestroomMap() {
       getDistanceInMeters(refCoords.latitude, refCoords.longitude, restroom.latitude, restroom.longitude) <= 100,
   )
 
+  const sortedRestrooms = [...filteredRestrooms].sort((a, b) => {
+    const distA = getDistanceInMeters(refCoords.latitude, refCoords.longitude, a.latitude, a.longitude)
+    const distB = getDistanceInMeters(refCoords.latitude, refCoords.longitude, b.latitude, b.longitude)
+    return distA - distB
+  })
+
   return (
     <main className="relative isolate h-dvh h-screen w-full overflow-hidden bg-muted font-sans">
       <div ref={mapContainerRef} className="absolute inset-0 h-full w-full z-0" aria-label="성균관대학교 화장실 지도" />
@@ -920,16 +926,16 @@ export function RestroomMap() {
                 <SheetTitle className="text-lg font-bold">
                   {userCoords
                     ? `가까운 화장실 (${selectedGender === 'male' ? '남성' : '여성'})`
-                    : `현위치를 눌러주세요! (${selectedGender === 'male' ? '남성' : '여성'})`}
+                    : `화장실 목록 (${selectedGender === 'male' ? '남성' : '여성'})`}
                 </SheetTitle>
                 <SheetDescription>
                   {userCoords
-                    ? '내 현위치 기준 가까운 순서로 정렬된 화장실 정보예요.'
-                    : '하단 현위치 버튼을 누르면 내 위치 기준 거리로 안내해 드려요.'}
+                    ? '내 현위치 기준 가까운 순서로 정렬된 화장실 목록이에요.'
+                    : '가까운 순서로 정렬된 화장실 목록이에요.'}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-3 overflow-y-auto p-4">
-                {filteredRestrooms.map((restroom) => {
+                {sortedRestrooms.map((restroom) => {
                   const distMeters = getDistanceInMeters(
                     refCoords.latitude,
                     refCoords.longitude,
@@ -953,8 +959,9 @@ export function RestroomMap() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
-                          <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                            {userCoords ? `약 ${walkMinutes}분` : `캠퍼스 중심`}
+                          <span className="shrink-0 text-xs font-bold text-emerald-700">
+                            {distMeters > 1000 ? `${(distMeters / 1000).toFixed(1)}km` : `${Math.round(distMeters)}m`}
+                            {userCoords ? ` (약 ${walkMinutes}분)` : ''}
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
