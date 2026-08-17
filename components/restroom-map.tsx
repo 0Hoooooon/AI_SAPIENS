@@ -639,13 +639,32 @@ export function RestroomMap() {
         const maps = naverMapsRef.current
         const map = mapInstanceRef.current
 
+        // 사용자의 실제 GPS 위치와 더 가까운 캠퍼스로 자동 스위치 전환
+        const distToNsc = getDistanceInMeters(
+          lat,
+          lng,
+          CAMPUS_CONFIGS.nsc.center.latitude,
+          CAMPUS_CONFIGS.nsc.center.longitude,
+        )
+        const distToHssc = getDistanceInMeters(
+          lat,
+          lng,
+          CAMPUS_CONFIGS.hssc.center.latitude,
+          CAMPUS_CONFIGS.hssc.center.longitude,
+        )
+        const targetCampus: 'nsc' | 'hssc' = distToNsc <= distToHssc ? 'nsc' : 'hssc'
+
+        if (targetCampus !== selectedCampusRef.current) {
+          handleCampusChange(targetCampus)
+        }
+
         showUserLocationOnMap(lat, lng)
 
         if (maps && map) {
           map.setCenter(new maps.LatLng(lat, lng))
         }
 
-        setToastMessage('현재 위치(빨간 점)로 이동했습니다!')
+        setToastMessage('현재 위치로 이동했습니다.')
         setTimeout(() => setToastMessage(null), 3500)
       },
       () => {
@@ -730,8 +749,29 @@ export function RestroomMap() {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          showUserLocationOnMap(position.coords.latitude, position.coords.longitude)
-          findAndShowClosest(position.coords.latitude, position.coords.longitude)
+          const lat = position.coords.latitude
+          const lng = position.coords.longitude
+
+          const distToNsc = getDistanceInMeters(
+            lat,
+            lng,
+            CAMPUS_CONFIGS.nsc.center.latitude,
+            CAMPUS_CONFIGS.nsc.center.longitude,
+          )
+          const distToHssc = getDistanceInMeters(
+            lat,
+            lng,
+            CAMPUS_CONFIGS.hssc.center.latitude,
+            CAMPUS_CONFIGS.hssc.center.longitude,
+          )
+          const targetCampus: 'nsc' | 'hssc' = distToNsc <= distToHssc ? 'nsc' : 'hssc'
+
+          if (targetCampus !== selectedCampusRef.current) {
+            handleCampusChange(targetCampus)
+          }
+
+          showUserLocationOnMap(lat, lng)
+          findAndShowClosest(lat, lng)
         },
         () => {
           // GPS 권한 거부 또는 획득 실패 시 활성 캠퍼스 중심점 기준으로 계산
@@ -783,10 +823,10 @@ export function RestroomMap() {
       ) : null}
 
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="flex items-center gap-2">
-          {/* 캠퍼스 선택 스위치 (자과: 파란색 / 인사: 연녹색) */}
+        {/* 좌측 통합 정보 카드 (상단: 자과/인사 스위치, 하단: 캠퍼스명 & 상태) */}
+        <div className="rounded-xl border bg-background/95 p-2 shadow-md backdrop-blur-sm">
           <div
-            className="pointer-events-auto flex items-center rounded-xl border bg-background/95 p-1 shadow-md backdrop-blur-sm"
+            className="pointer-events-auto mb-1.5 flex items-center gap-1 rounded-lg bg-muted/60 p-0.5"
             role="radiogroup"
             aria-label="캠퍼스 선택"
           >
@@ -795,7 +835,7 @@ export function RestroomMap() {
               role="radio"
               aria-checked={selectedCampus === 'nsc'}
               onClick={() => handleCampusChange('nsc')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all ${
+              className={`flex-1 rounded-md px-3 py-1 text-center text-xs font-bold transition-all ${
                 selectedCampus === 'nsc'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -808,9 +848,9 @@ export function RestroomMap() {
               role="radio"
               aria-checked={selectedCampus === 'hssc'}
               onClick={() => handleCampusChange('hssc')}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all ${
+              className={`flex-1 rounded-md px-3 py-1 text-center text-xs font-bold transition-all ${
                 selectedCampus === 'hssc'
-                  ? 'bg-emerald-500 text-white shadow-sm'
+                  ? 'bg-[#0c4f34] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -818,9 +858,8 @@ export function RestroomMap() {
             </button>
           </div>
 
-          <div className="rounded-xl bg-background/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
-            <p className="text-xs font-semibold text-foreground">{activeCampus.name}</p>
-            <p className="text-[11px] font-medium text-emerald-700">
+          <div className="px-1">
+            <p className={`text-[11px] font-medium ${selectedCampus === 'hssc' ? 'text-[#0c4f34]' : 'text-blue-700'}`}>
               {userCoords
                 ? `가까운 화장실 ${nearby100mRestrooms.length}곳 (반경 100m)`
                 : '현위치 버튼을 눌러주세요!'}
@@ -1008,10 +1047,14 @@ export function RestroomMap() {
                   type="submit"
                   size="icon-lg"
                   disabled={isSearching}
-                  className="size-11 rounded-xl"
+                  className={`size-11 rounded-xl text-white transition-colors ${
+                    selectedCampus === 'hssc'
+                      ? 'bg-[#0c4f34] hover:bg-[#083b27]'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                   aria-label="메시지 전송"
                 >
-                  {isSearching ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : <Send />}
+                  {isSearching ? <Loader2 className="size-5 animate-spin text-white" /> : <Send className="size-5 text-white" />}
                 </Button>
               </Field>
             </FieldGroup>
@@ -1119,7 +1162,11 @@ export function RestroomMap() {
                 <Button
                   type="submit"
                   disabled={!feedbackRating || isSubmittingFeedback}
-                  className="flex-1 rounded-xl bg-[#0c4f34] text-xs font-semibold text-white hover:bg-[#093d28]"
+                  className={`flex-1 rounded-xl text-xs font-semibold text-white transition-colors ${
+                    selectedCampus === 'hssc'
+                      ? 'bg-[#0c4f34] hover:bg-[#083b27]'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   {isSubmittingFeedback ? <Loader2 className="size-4 animate-spin text-white" /> : '의견 보내기'}
                 </Button>
