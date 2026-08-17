@@ -721,9 +721,9 @@ export function RestroomMap() {
 
   const refCoords = userCoords ?? CAMPUS_CENTER
   const filteredRestrooms = restrooms.filter((restroom) => restroom.gender === selectedGender)
-  const nearby200mRestrooms = filteredRestrooms.filter(
+  const nearby100mRestrooms = filteredRestrooms.filter(
     (restroom) =>
-      getDistanceInMeters(refCoords.latitude, refCoords.longitude, restroom.latitude, restroom.longitude) <= 200,
+      getDistanceInMeters(refCoords.latitude, refCoords.longitude, restroom.latitude, restroom.longitude) <= 100,
   )
 
   return (
@@ -752,7 +752,7 @@ export function RestroomMap() {
           <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
           <p className="text-xs font-medium text-emerald-700">
             {userCoords
-              ? `가까운 화장실 ${nearby200mRestrooms.length}곳 (반경 200m)`
+              ? `가까운 화장실 ${nearby100mRestrooms.length}곳 (반경 100m)`
               : '현위치 버튼을 눌러주세요!'}
           </p>
         </div>
