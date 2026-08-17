@@ -257,7 +257,7 @@ export function RestroomMap() {
       setIsFeedbackOpen(false)
       setFeedbackRating(null)
       setFeedbackText('')
-      setToastMessage('소중한 피드백이 전달되었습니다! 감사합니다 💚')
+      setToastMessage('소중한 피드백이 전달되었습니다. 감사합니다.')
       setTimeout(() => setToastMessage(null), 4000)
     } catch (err) {
       console.error(err)
@@ -742,7 +742,7 @@ export function RestroomMap() {
       {toastMessage ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4">
           <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl bg-slate-900/90 px-4 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-md">
-            📍 {toastMessage}
+            {toastMessage}
           </div>
         </div>
       ) : null}
@@ -753,7 +753,7 @@ export function RestroomMap() {
           <p className="text-xs font-medium text-emerald-700">
             {userCoords
               ? `가까운 화장실 ${nearby200mRestrooms.length}곳 (반경 200m)`
-              : '현위치(🧭)를 눌러주세요!'}
+              : '현위치 버튼을 눌러주세요!'}
           </p>
         </div>
 
@@ -815,7 +815,7 @@ export function RestroomMap() {
                 <SheetDescription>
                   {userCoords
                     ? '내 현위치 기준 가까운 순서로 정렬된 화장실 정보예요.'
-                    : '하단 현위치(🧭) 버튼을 누르면 내 위치 기준 거리로 안내해 드려요!'}
+                    : '하단 현위치 버튼을 누르면 내 위치 기준 거리로 안내해 드려요.'}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-3 overflow-y-auto p-4">
