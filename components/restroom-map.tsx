@@ -28,10 +28,10 @@ const CAMPUS_CONFIGS = {
   hssc: {
     name: '인문사회캠퍼스',
     shortName: '인사',
-    center: { latitude: 37.5882, longitude: 126.9936 },
+    center: { latitude: 37.5882, longitude: 126.99325 },
     bounds: {
-      sw: { latitude: 37.5855, longitude: 126.99 },
-      ne: { latitude: 37.5915, longitude: 126.997 },
+      sw: { latitude: 37.5815, longitude: 126.9855 },
+      ne: { latitude: 37.595, longitude: 127.001 },
     },
   },
 }
