@@ -1,16 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 
-const notoSansKr = Noto_Sans_KR({
-  subsets: ['latin'],
-  variable: '--font-noto-sans-kr',
-  display: 'swap',
-})
-
 export const metadata: Metadata = {
-  title: '화장실 지도 | 내 주변 화장실 찾기',
+  title: '스꾸비데 - 성균관대 화장실 지도',
   description: '내 주변 화장실의 위치, 층수, 비데 유무를 빠르게 확인하세요.',
   generator: 'v0.app',
 }
@@ -26,7 +19,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" className="bg-background">
-      <body className={`${notoSansKr.variable} antialiased`}>
+      <body className="antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

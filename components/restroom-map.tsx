@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Building2, Check, Loader2, Menu, Navigation, Send, X } from 'lucide-react'
+import { Building2, Check, Loader2, Menu, MessageSquareHeart, Navigation, Send, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -218,6 +218,55 @@ export function RestroomMap() {
   const [isSearching, setIsSearching] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+
+  // 피드백 모달 관련 상태
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
+  const [feedbackRating, setFeedbackRating] = useState<'good' | 'normal' | 'bad' | null>(null)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+
+  const handleFeedbackSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!feedbackRating) return
+
+    setIsSubmittingFeedback(true)
+
+    try {
+      const formUrl =
+        process.env.NEXT_PUBLIC_GOOGLE_FORM_URL ||
+        'https://docs.google.com/forms/d/e/1FAIpQLSfRLpxdym1sINJ11qzhFv3VSJtKiU9V06cJA6yCIviqxTPszA/formResponse'
+
+      const ratingText =
+        feedbackRating === 'good' ? '만족' : feedbackRating === 'normal' ? '보통' : '아쉬운'
+
+      const formData = new URLSearchParams()
+      formData.append('entry.1875055341', ratingText)
+      if (feedbackText.trim()) {
+        formData.append('entry.1137740737', feedbackText.trim())
+      }
+
+      await fetch(formUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      })
+
+      setIsFeedbackOpen(false)
+      setFeedbackRating(null)
+      setFeedbackText('')
+      setToastMessage('소중한 피드백이 전달되었습니다! 감사합니다 💚')
+      setTimeout(() => setToastMessage(null), 4000)
+    } catch (err) {
+      console.error(err)
+      setToastMessage('의견 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
+      setTimeout(() => setToastMessage(null), 3000)
+    } finally {
+      setIsSubmittingFeedback(false)
+    }
+  }
 
   const naverMapsRef = useRef<NaverMaps | null>(null)
   const mapInstanceRef = useRef<NaverMapInstance | null>(null)
@@ -837,16 +886,28 @@ export function RestroomMap() {
       {/* 우측 하단 전송 버튼 위쪽에 위치한 현위치 버튼 & 채팅 전송 입력 바 */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-xl flex-col items-end gap-2">
-          {/* 진한 그레이 바탕의 현위치 버튼 */}
-          <button
-            type="button"
-            onClick={handleGetCurrentLocation}
-            className="pointer-events-auto flex size-11 items-center justify-center rounded-2xl bg-slate-700/90 text-white shadow-lg backdrop-blur-md transition-all hover:bg-slate-800 active:scale-95"
-            aria-label="내 현위치 표시"
-            title="내 현위치 표시"
-          >
-            <Navigation className="size-5 fill-white text-white" />
-          </button>
+          {/* 현위치 버튼 & 피드백 버튼 행 */}
+          <div className="pointer-events-auto flex w-full items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFeedbackOpen(true)}
+              className="flex items-center gap-1.5 rounded-2xl border bg-background/95 px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur-md transition-all hover:bg-slate-50 active:scale-95"
+              aria-label="의견 보내기"
+            >
+              <MessageSquareHeart className="size-4 text-[#0c4f34]" />
+              <span>의견 남기기</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGetCurrentLocation}
+              className="flex size-11 items-center justify-center rounded-2xl bg-slate-700/90 text-white shadow-lg backdrop-blur-md transition-all hover:bg-slate-800 active:scale-95"
+              aria-label="내 현위치 표시"
+              title="내 현위치 표시"
+            >
+              <Navigation className="size-5 fill-white text-white" />
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="pointer-events-auto w-full">
             <FieldGroup className="rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur-md">
@@ -876,6 +937,116 @@ export function RestroomMap() {
           </form>
         </div>
       </div>
+
+      {/* 의견 남기기 커스텀 모달 팝업 */}
+      {isFeedbackOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setIsFeedbackOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border bg-background p-5 shadow-2xl transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                  <MessageSquareHeart className="size-5 text-[#0c4f34]" />
+                  서비스 후기 및 의견 남기기
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  성균관대 화장실 정보 서비스 이용 후기를 남겨주세요!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFeedbackOpen(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="닫기"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFeedbackSubmit} className="mt-4 flex flex-col gap-4">
+              {/* 이용 만족도 선택 (👍 좋아요 / 😐 보통 / 👎 아쉬워요) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700">이용 만족도</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackRating('good')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-2xl border p-3 transition-all ${
+                      feedbackRating === 'good'
+                        ? 'border-[#0c4f34] bg-[#0c4f34]/10 text-[#0c4f34] font-bold shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="text-2xl">👍</span>
+                    <span className="text-xs">좋아요</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackRating('normal')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-2xl border p-3 transition-all ${
+                      feedbackRating === 'normal'
+                        ? 'border-[#0c4f34] bg-[#0c4f34]/10 text-[#0c4f34] font-bold shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="text-2xl">😐</span>
+                    <span className="text-xs">보통이에요</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackRating('bad')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-2xl border p-3 transition-all ${
+                      feedbackRating === 'bad'
+                        ? 'border-[#0c4f34] bg-[#0c4f34]/10 text-[#0c4f34] font-bold shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="text-2xl">👎</span>
+                    <span className="text-xs">아쉬워요</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 추가 의견 텍스트 입력창 */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="feedback-comment" className="text-xs font-semibold text-slate-700">
+                  추가 의견 (선택)
+                </label>
+                <textarea
+                  id="feedback-comment"
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="개선점이나 추가되었으면 하는 화장실 위치 등 자유로운 의견을 남겨주세요."
+                  className="h-24 w-full resize-none rounded-2xl border bg-slate-50/50 p-3 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c4f34]"
+                />
+              </div>
+
+              <div className="mt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsFeedbackOpen(false)}
+                  className="flex-1 rounded-xl text-xs"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!feedbackRating || isSubmittingFeedback}
+                  className="flex-1 rounded-xl bg-[#0c4f34] text-xs font-semibold text-white hover:bg-[#093d28]"
+                >
+                  {isSubmittingFeedback ? <Loader2 className="size-4 animate-spin text-white" /> : '의견 보내기'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
