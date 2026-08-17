@@ -30,8 +30,8 @@ const CAMPUS_CONFIGS = {
     shortName: '인사',
     center: { latitude: 37.5882, longitude: 126.9936 },
     bounds: {
-      sw: { latitude: 37.58, longitude: 126.985 },
-      ne: { latitude: 37.597, longitude: 127.003 },
+      sw: { latitude: 37.5835, longitude: 126.988 },
+      ne: { latitude: 37.5935, longitude: 126.999 },
     },
   },
 }
