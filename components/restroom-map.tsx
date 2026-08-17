@@ -750,8 +750,10 @@ export function RestroomMap() {
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="rounded-xl bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
           <p className="text-sm font-semibold text-foreground">성균관대 자연과학캠퍼스</p>
-          <p className="text-xs text-muted-foreground">
-            가까운 화장실 {nearby200mRestrooms.length}곳 (반경 200m)
+          <p className="text-xs font-medium text-emerald-700">
+            {userCoords
+              ? `가까운 화장실 ${nearby200mRestrooms.length}곳 (반경 200m)`
+              : '현위치(🧭)를 눌러주세요!'}
           </p>
         </div>
 
@@ -806,9 +808,15 @@ export function RestroomMap() {
             <SheetContent side="right" className="w-[88%] max-w-sm bg-background p-0">
               <SheetHeader className="border-b p-5 pr-14">
                 <SheetTitle className="text-lg font-bold">
-                  가까운 화장실 ({selectedGender === 'male' ? '남성' : '여성'})
+                  {userCoords
+                    ? `가까운 화장실 (${selectedGender === 'male' ? '남성' : '여성'})`
+                    : `현위치를 눌러주세요! (${selectedGender === 'male' ? '남성' : '여성'})`}
                 </SheetTitle>
-                <SheetDescription>선택한 성별의 캠퍼스 내 화장실 정보예요.</SheetDescription>
+                <SheetDescription>
+                  {userCoords
+                    ? '내 현위치 기준 가까운 순서로 정렬된 화장실 정보예요.'
+                    : '하단 현위치(🧭) 버튼을 누르면 내 위치 기준 거리로 안내해 드려요!'}
+                </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-3 overflow-y-auto p-4">
                 {filteredRestrooms.map((restroom) => {
@@ -835,7 +843,9 @@ export function RestroomMap() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <h2 className="truncate text-sm font-semibold">{restroom.name}</h2>
-                          <span className="shrink-0 text-xs font-medium text-muted-foreground">약 {walkMinutes}분</span>
+                          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                            {userCoords ? `약 ${walkMinutes}분` : `캠퍼스 중심`}
+                          </span>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {restroom.floors.length > 1
