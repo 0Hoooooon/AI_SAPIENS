@@ -468,6 +468,12 @@ export function RestroomMap() {
     line3.appendChild(accessibleSpan)
     container.appendChild(line3)
 
+    // 4번째 줄: 양심생리대 유무
+    const line4 = document.createElement('div')
+    line4.style.cssText = 'font-size: 12px; margin-top: 3px;'
+    const sanitaryPadSpan = document.createElement('span')
+    line4.appendChild(sanitaryPadSpan)
+
     const updateBadges = (floor: FloorInfo) => {
       bidetSpan.innerHTML = floor.bidet
         ? '<span style="color: #16a34a; font-weight: 600;">비데 있음</span>'
@@ -479,6 +485,17 @@ export function RestroomMap() {
           : floor.accessible
           ? '<span style="color: #2563eb; font-weight: 600;">장애인용 화장실 있음</span>'
           : '<span style="color: #dc2626; font-weight: 600;">장애인용 화장실 없음</span>'
+
+      if (restroom.gender === 'female' || floor.sanitaryPad !== undefined) {
+        sanitaryPadSpan.innerHTML = floor.sanitaryPad
+          ? '<span style="color: #ec4899; font-weight: 600;">양심생리대 있음</span>'
+          : '<span style="color: #94a3b8; font-weight: 500;">양심생리대 없음</span>'
+        if (!line4.parentElement) {
+          container.appendChild(line4)
+        }
+      } else if (line4.parentElement) {
+        container.removeChild(line4)
+      }
     }
 
     updateBadges(initialFloor)
@@ -700,28 +717,33 @@ export function RestroomMap() {
       const effectiveFloor = targetFloor ?? '1층'
       const hasBidetQuery = trimmed.includes('비데')
       const hasAccessibleQuery = trimmed.includes('장애인') || trimmed.includes('휠체어')
+      const hasSanitaryQuery = trimmed.includes('생리대') || trimmed.includes('양심생리대')
 
       let candidateList = restrooms.filter(
         (r) => r.gender === selectedGender && (r.campus ?? 'nsc') === selectedCampus,
       )
 
-      // 층수 (기본 1층) + 비데 + 장애인화장실 조건 검색
+      // 층수 (기본 1층) + 비데 + 장애인 + 양심생리대 조건 검색
       const exactMatched = candidateList.filter((r) =>
         r.floors.some(
           (f) =>
             f.floor === effectiveFloor &&
             (!hasBidetQuery || f.bidet) &&
-            (!hasAccessibleQuery || f.accessible),
+            (!hasAccessibleQuery || f.accessible) &&
+            (!hasSanitaryQuery || f.sanitaryPad),
         ),
       )
 
       if (exactMatched.length > 0) {
         candidateList = exactMatched
       } else {
-        // 지정된 층(또는 1층)에 비데/장애인 조건이 없을 경우, 비데/장애인 조건만 만족하는 화장실 검색
+        // 지정된 층(또는 1층)에 조건이 없을 경우 조건만 만족하는 화장실 검색
         const featureMatched = candidateList.filter((r) =>
           r.floors.some(
-            (f) => (!hasBidetQuery || f.bidet) && (!hasAccessibleQuery || f.accessible),
+            (f) =>
+              (!hasBidetQuery || f.bidet) &&
+              (!hasAccessibleQuery || f.accessible) &&
+              (!hasSanitaryQuery || f.sanitaryPad),
           ),
         )
         if (featureMatched.length > 0) {
@@ -778,7 +800,13 @@ export function RestroomMap() {
 
       const formatDist = (d: number) => (d > 1000 ? `${(d / 1000).toFixed(1)}km` : `${Math.round(d)}m`)
       const floorDesc = `${effectiveFloor} `
-      const featureDesc = hasBidetQuery ? '비데 ' : hasAccessibleQuery ? '장애인 ' : ''
+      const featureDesc = hasBidetQuery
+        ? '비데 '
+        : hasAccessibleQuery
+        ? '장애인 '
+        : hasSanitaryQuery
+        ? '양심생리대 '
+        : ''
 
       if (second) {
         setToastMessage(
@@ -993,6 +1021,7 @@ export function RestroomMap() {
                   const hasBidet = restroom.floors.some((f) => f.bidet)
                   const hasAccessible = restroom.floors.some((f) => f.accessible)
                   const hasUnisexAccessible = restroom.floors.some((f) => f.accessible === 'unisex')
+                  const hasSanitaryPad = restroom.floors.some((f) => f.sanitaryPad)
 
                   return (
                     <article
@@ -1045,6 +1074,14 @@ export function RestroomMap() {
                             <span className="flex items-center gap-1 font-semibold text-rose-600">
                               <X className="size-3.5 stroke-[2.5] text-rose-600" aria-hidden="true" /> 장애인용 없음
                             </span>
+                          )}
+                          {hasSanitaryPad && (
+                            <>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span className="flex items-center gap-1 font-semibold text-pink-600">
+                                <Check className="size-3.5 stroke-[2.5] text-pink-600" aria-hidden="true" /> 양심생리대 있음
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>

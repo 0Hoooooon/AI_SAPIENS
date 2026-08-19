@@ -2,6 +2,7 @@ export type FloorInfo = {
   floor: string
   bidet: boolean
   accessible?: boolean | 'unisex'
+  sanitaryPad?: boolean
 }
 
 export type Restroom = {
@@ -484,6 +485,98 @@ export const restrooms: Restroom[] = [
     floors: [
       { floor: '1층', bidet: true, accessible: false },
       { floor: '3층', bidet: true, accessible: false },
+    ],
+  },
+  {
+    id: 40,
+    name: '퇴계인문관1(여)',
+    latitude: 37.58923,
+    longitude: 126.991543,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: '3층', bidet: true, accessible: false },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
+      { floor: '6층', bidet: true, accessible: false },
+      { floor: '7층', bidet: true, accessible: false },
+    ],
+  },
+  {
+    id: 41,
+    name: '퇴계인문관2(여)',
+    latitude: 37.58888,
+    longitude: 126.99182,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: true },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
+      { floor: '6층', bidet: true, accessible: false },
+      { floor: '7층', bidet: true, accessible: false },
+    ],
+  },
+  {
+    id: 42,
+    name: '다산경제관(여)',
+    latitude: 37.589075,
+    longitude: 126.992142,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: '1층', bidet: true, accessible: false, sanitaryPad: true },
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
+    ],
+  },
+  {
+    id: 43,
+    name: '경영관1(여)',
+    latitude: 37.588512,
+    longitude: 126.992437,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: 'B2층', bidet: true, accessible: false },
+      { floor: 'B1층', bidet: true, accessible: false },
+      { floor: '2층', bidet: true, accessible: true },
+      { floor: '3층', bidet: true, accessible: true },
+      { floor: '4층', bidet: true, accessible: true },
+      { floor: '5층', bidet: true, accessible: true },
+    ],
+  },
+  {
+    id: 44,
+    name: '경영관2(여)',
+    latitude: 37.588639,
+    longitude: 126.992764,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: 'B3층', bidet: true, accessible: false },
+      { floor: 'B2층', bidet: true, accessible: false },
+      { floor: 'B1층', bidet: true, accessible: false },
+      { floor: '1층', bidet: true, accessible: false, sanitaryPad: true },
+      { floor: '2층', bidet: true, accessible: false },
+      { floor: '3층', bidet: true, accessible: false, sanitaryPad: true },
+      { floor: '4층', bidet: true, accessible: false },
+      { floor: '5층', bidet: true, accessible: false },
+    ],
+  },
+  {
+    id: 45,
+    name: '학생회관(여)',
+    latitude: 37.587426,
+    longitude: 126.993279,
+    gender: 'female',
+    campus: 'hssc',
+    floors: [
+      { floor: '3층', bidet: true, accessible: false },
+      { floor: '4층', bidet: true, accessible: false, sanitaryPad: true },
     ],
   },
 ]
