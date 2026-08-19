@@ -36,6 +36,165 @@ const CAMPUS_CONFIGS = {
   },
 }
 
+type BuildingMapping = {
+  canonicalName: string
+  campus: 'nsc' | 'hssc' | 'both'
+  synonyms: string[]
+}
+
+const BUILDING_MAPPINGS: BuildingMapping[] = [
+  // --- 자연과학캠퍼스 (nsc) ---
+  {
+    canonicalName: '삼성학술정보관',
+    campus: 'nsc',
+    synonyms: ['삼성학술정보관', '학술정보관', '학정', '디도', '디지털도서관', '도서관'],
+  },
+  {
+    canonicalName: '생명공학관',
+    campus: 'nsc',
+    synonyms: ['생명공학관', '생명과학관', '생공관', '생과관', '생공', '생과'],
+  },
+  {
+    canonicalName: '기초학문관',
+    campus: 'nsc',
+    synonyms: ['기초학문관', '기초관', '기학관', '기초'],
+  },
+  {
+    canonicalName: '제1과학관',
+    campus: 'nsc',
+    synonyms: ['제1과학관', '1과학관', '1과관', '제1과관', '일과학관'],
+  },
+  {
+    canonicalName: '제2과학관',
+    campus: 'nsc',
+    synonyms: ['제2과학관', '2과학관', '2과관', '제2과관', '이과학관'],
+  },
+  {
+    canonicalName: 'CNS',
+    campus: 'nsc',
+    synonyms: ['cns', 'cns센터', 'cns연구센터', 'cns연구원', '씨엔에스', 'n센터', 'n-center', 'ncenter'],
+  },
+  {
+    canonicalName: 'E센터',
+    campus: 'nsc',
+    synonyms: ['e센터', 'e-center', 'ecenter', '이센터', '전자정보관'],
+  },
+  {
+    canonicalName: '제1종합연구동',
+    campus: 'nsc',
+    synonyms: ['제1종합연구동', '1종합연구동', '1종동', '제1종동', '종합연구동'],
+  },
+  {
+    canonicalName: '공학실습동',
+    campus: 'nsc',
+    synonyms: ['공학실습동', '공실동'],
+  },
+  {
+    canonicalName: '산학협력관',
+    campus: 'nsc',
+    synonyms: ['산학협력관', '산학관', '산학'],
+  },
+  {
+    canonicalName: '약학관',
+    campus: 'nsc',
+    synonyms: ['약학관', '약대'],
+  },
+  {
+    canonicalName: '화학관',
+    campus: 'nsc',
+    synonyms: ['화학관'],
+  },
+  {
+    canonicalName: '반도체관',
+    campus: 'nsc',
+    synonyms: ['반도체관', '반도체'],
+  },
+  {
+    canonicalName: '의학관',
+    campus: 'nsc',
+    synonyms: ['의학관', '의대'],
+  },
+  {
+    canonicalName: '제1공학관',
+    campus: 'nsc',
+    synonyms: ['제1공학관', '1공학관', '1공관', '1공'],
+  },
+  {
+    canonicalName: '제2공학관',
+    campus: 'nsc',
+    synonyms: ['제2공학관', '2공학관', '2공관', '2공'],
+  },
+  {
+    canonicalName: '복지관',
+    campus: 'nsc',
+    synonyms: ['복지관'],
+  },
+
+  // --- 인문사회캠퍼스 (hssc) ---
+  {
+    canonicalName: '퇴계인문관',
+    campus: 'hssc',
+    synonyms: ['퇴계인문관', '인문관', '퇴계관', '퇴계', '인문'],
+  },
+  {
+    canonicalName: '다산경제관',
+    campus: 'hssc',
+    synonyms: ['다산경제관', '경제관', '다산관', '다산', '경제'],
+  },
+  {
+    canonicalName: '경영관',
+    campus: 'hssc',
+    synonyms: ['경영관', '경영대', '경영'],
+  },
+  {
+    canonicalName: '수선관',
+    campus: 'hssc',
+    synonyms: ['수선관', '수선관별관', '수별'],
+  },
+  {
+    canonicalName: '600주년기념관',
+    campus: 'hssc',
+    synonyms: ['600주년', '600주년기념관', '육백주년', '600관'],
+  },
+  {
+    canonicalName: '호암관',
+    campus: 'hssc',
+    synonyms: ['호암관'],
+  },
+  {
+    canonicalName: '국제관',
+    campus: 'hssc',
+    synonyms: ['국제관'],
+  },
+  {
+    canonicalName: '양현관',
+    campus: 'hssc',
+    synonyms: ['양현관'],
+  },
+  {
+    canonicalName: '비천당',
+    campus: 'hssc',
+    synonyms: ['비천당'],
+  },
+  {
+    canonicalName: '유림회관',
+    campus: 'hssc',
+    synonyms: ['유림회관'],
+  },
+  {
+    canonicalName: '교수회관',
+    campus: 'hssc',
+    synonyms: ['교수회관'],
+  },
+
+  // --- 학생회관 (양쪽 캠퍼스 모두 존재) ---
+  {
+    canonicalName: '학생회관',
+    campus: 'both',
+    synonyms: ['학생회관', '학관'],
+  },
+]
+
 import { restrooms, type Restroom } from '@/lib/restrooms-data'
 
 type NaverLatLng = {
@@ -289,6 +448,7 @@ export function RestroomMap() {
   const markersRef = useRef<NaverMarkerInstance[]>([])
   const currentOverlaysRef = useRef<unknown[]>([])
   const userLocationOverlayRef = useRef<NaverMarkerInstance | null>(null)
+  const skipOverlayClearRef = useRef(false)
 
   const showUserLocationOnMap = (lat: number, lng: number) => {
     setUserCoords({ latitude: lat, longitude: lng })
@@ -600,8 +760,12 @@ export function RestroomMap() {
     const map = mapInstanceRef.current
     if (!isMapReady || !maps || !map) return
 
-    // 열려있는 팝업 제거
-    clearAllOverlays()
+    // 검색에 의해 팝업이 유지되어야 하는 경우 클리어 건너뛰기
+    if (skipOverlayClearRef.current) {
+      skipOverlayClearRef.current = false
+    } else {
+      clearAllOverlays()
+    }
 
     // 기존 마커 제거
     markersRef.current.forEach((marker) => marker.setMap(null))
@@ -633,7 +797,7 @@ export function RestroomMap() {
     })
   }, [selectedGender, selectedCampus, isMapReady])
 
-  const handleCampusChange = (campusKey: 'nsc' | 'hssc') => {
+  const handleCampusChange = (campusKey: 'nsc' | 'hssc', skipResetMap = false) => {
     setSelectedCampus(campusKey)
     selectedCampusRef.current = campusKey
 
@@ -645,11 +809,14 @@ export function RestroomMap() {
         new maps.LatLng(config.bounds.sw.latitude, config.bounds.sw.longitude),
         new maps.LatLng(config.bounds.ne.latitude, config.bounds.ne.longitude),
       )
-      const newCenter = new maps.LatLng(config.center.latitude, config.center.longitude)
-
-      map.setCenter(newCenter)
-      map.setZoom(16)
       map.setOptions({ maxBounds: newBounds })
+
+      if (!skipResetMap) {
+        clearAllOverlays()
+        const newCenter = new maps.LatLng(config.center.latitude, config.center.longitude)
+        map.setCenter(newCenter)
+        map.setZoom(16)
+      }
     }
   }
 
@@ -710,32 +877,86 @@ export function RestroomMap() {
 
     setIsSearching(true)
 
-    const findAndShowClosest = (userLat: number, userLng: number) => {
-      const targetFloor = extractFloorFromQuery(trimmed)
-      const effectiveFloor = targetFloor ?? '1층'
+    const normalized = trimmed.toLowerCase().replace(/\s+/g, '')
+
+    // 건물 매칭 검색 (synonyms 사전 기반)
+    const matchedBuilding = BUILDING_MAPPINGS.find((b) =>
+      b.synonyms.some((syn) => normalized.includes(syn.toLowerCase().replace(/\s+/g, ''))),
+    )
+
+    let explicitCampus: 'nsc' | 'hssc' | null = null
+
+    if (matchedBuilding) {
+      if (matchedBuilding.campus === 'nsc') {
+        explicitCampus = 'nsc'
+      } else if (matchedBuilding.campus === 'hssc') {
+        explicitCampus = 'hssc'
+      } else if (matchedBuilding.campus === 'both') {
+        // 학생회관의 경우 질문에 명시된 지역 키워드가 있을 때만 이동
+        if (normalized.includes('자과') || normalized.includes('수원') || normalized.includes('율전')) {
+          explicitCampus = 'nsc'
+        } else if (normalized.includes('인사') || normalized.includes('명륜') || normalized.includes('혜화') || normalized.includes('서울')) {
+          explicitCampus = 'hssc'
+        }
+      }
+    } else {
+      // 건물명이 없더라도 캠퍼스 키워드가 명시된 경우
+      if (normalized.includes('자과') || normalized.includes('수원') || normalized.includes('율전')) {
+        explicitCampus = 'nsc'
+      } else if (normalized.includes('인사') || normalized.includes('명륜') || normalized.includes('혜화') || normalized.includes('서울')) {
+        explicitCampus = 'hssc'
+      }
+    }
+
+    const findAndShowClosest = (userLat: number, userLng: number, activeCampus: 'nsc' | 'hssc') => {
       const hasBidetQuery = trimmed.includes('비데')
       const hasAccessibleQuery = trimmed.includes('장애인') || trimmed.includes('휠체어')
       const hasSanitaryQuery = trimmed.includes('생리대') || trimmed.includes('양심생리대')
 
+      // 성별 자동 감지 (질문에 "생리대" 또는 "여"가 있으면 female, "남"이 있으면 male)
+      let queryGender = selectedGender
+      if (hasSanitaryQuery || trimmed.includes('여자') || trimmed.includes('여성')) {
+        queryGender = 'female'
+        if (selectedGender !== 'female') {
+          setSelectedGender('female')
+        }
+      } else if (trimmed.includes('남자') || trimmed.includes('남성')) {
+        queryGender = 'male'
+        if (selectedGender !== 'male') {
+          setSelectedGender('male')
+        }
+      }
+
       let candidateList = restrooms.filter(
-        (r) => r.gender === selectedGender && (r.campus ?? 'nsc') === selectedCampus,
+        (r) => r.gender === queryGender && (r.campus ?? 'nsc') === activeCampus,
       )
 
-      // 층수 (기본 1층) + 비데 + 장애인 + 양심생리대 조건 검색
-      const exactMatched = candidateList.filter((r) =>
-        r.floors.some(
-          (f) =>
-            f.floor === effectiveFloor &&
-            (!hasBidetQuery || f.bidet) &&
-            (!hasAccessibleQuery || f.accessible) &&
-            (!hasSanitaryQuery || f.sanitaryPad),
-        ),
-      )
+      // 건물명 키워드 매칭
+      if (matchedBuilding) {
+        const buildingFiltered = candidateList.filter((r) => r.name.includes(matchedBuilding.canonicalName))
+        if (buildingFiltered.length > 0) {
+          candidateList = buildingFiltered
+        }
+      }
 
-      if (exactMatched.length > 0) {
-        candidateList = exactMatched
+      const targetFloor = extractFloorFromQuery(trimmed)
+
+      // 층수 + 비데 + 장애인 + 양심생리대 조건 검색
+      if (targetFloor) {
+        const exactMatched = candidateList.filter((r) =>
+          r.floors.some(
+            (f) =>
+              f.floor === targetFloor &&
+              (!hasBidetQuery || f.bidet) &&
+              (!hasAccessibleQuery || f.accessible) &&
+              (!hasSanitaryQuery || f.sanitaryPad),
+          ),
+        )
+        if (exactMatched.length > 0) {
+          candidateList = exactMatched
+        }
       } else {
-        // 지정된 층(또는 1층)에 조건이 없을 경우 조건만 만족하는 화장실 검색
+        // 층수가 명시되지 않은 경우, 요구 기능(생리대/장애인/비데)이 있는 층을 가진 화장실 우선 매칭
         const featureMatched = candidateList.filter((r) =>
           r.floors.some(
             (f) =>
@@ -766,11 +987,31 @@ export function RestroomMap() {
       const first = sortedWithDist[0]
       const second = sortedWithDist[1]
 
+      // 화장실 팝업 열 때 추천 층수 결정 (명시된 층수 or 해당 기능이 있는 층수)
+      let effectiveFloor = targetFloor ?? '1층'
+      if (!targetFloor) {
+        if (hasSanitaryQuery) {
+          const sanitaryFloor = first.restroom.floors.find((f) => f.sanitaryPad)
+          if (sanitaryFloor) effectiveFloor = sanitaryFloor.floor
+        } else if (hasAccessibleQuery) {
+          const accFloor = first.restroom.floors.find((f) => f.accessible)
+          if (accFloor) effectiveFloor = accFloor.floor
+        } else if (hasBidetQuery) {
+          const bidetFloor = first.restroom.floors.find((f) => f.bidet)
+          if (bidetFloor) effectiveFloor = bidetFloor.floor
+        }
+      }
+
       clearAllOverlays()
 
       openOverlayForRestroom(first.restroom, effectiveFloor, '1등', true)
       if (second) {
-        openOverlayForRestroom(second.restroom, effectiveFloor, '2등', true)
+        let secondFloor = targetFloor ?? '1층'
+        if (!targetFloor && hasSanitaryQuery) {
+          const sFloor = second.restroom.floors.find((f) => f.sanitaryPad)
+          if (sFloor) secondFloor = sFloor.floor
+        }
+        openOverlayForRestroom(second.restroom, secondFloor, '2등', true)
       }
 
       const maps = naverMapsRef.current
@@ -819,6 +1060,18 @@ export function RestroomMap() {
       setTimeout(() => setToastMessage(null), 5500)
     }
 
+    // 질문에 명시된 캠퍼스(건물)가 있다면 해당 캠퍼스로 즉시 전환 및 검색
+    if (explicitCampus) {
+      skipOverlayClearRef.current = true
+      if (explicitCampus !== selectedCampusRef.current) {
+        handleCampusChange(explicitCampus, true)
+      }
+      const campusCenter = CAMPUS_CONFIGS[explicitCampus].center
+      findAndShowClosest(campusCenter.latitude, campusCenter.longitude, explicitCampus)
+      return
+    }
+
+    // 질문에 특정 캠퍼스가 없으면 GPS 위치 기반 판단
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -837,25 +1090,27 @@ export function RestroomMap() {
             CAMPUS_CONFIGS.hssc.center.latitude,
             CAMPUS_CONFIGS.hssc.center.longitude,
           )
-          const targetCampus: 'nsc' | 'hssc' = distToNsc <= distToHssc ? 'nsc' : 'hssc'
+          const gpsCampus: 'nsc' | 'hssc' = distToNsc <= distToHssc ? 'nsc' : 'hssc'
 
-          if (targetCampus !== selectedCampusRef.current) {
-            handleCampusChange(targetCampus)
+          if (gpsCampus !== selectedCampusRef.current) {
+            skipOverlayClearRef.current = true
+            handleCampusChange(gpsCampus, true)
           }
 
           showUserLocationOnMap(lat, lng)
-          findAndShowClosest(lat, lng)
+          findAndShowClosest(lat, lng, gpsCampus)
         },
         () => {
-          // GPS 권한 거부 또는 획득 실패 시 활성 캠퍼스 중심점 기준으로 계산
-          const campusCenter = CAMPUS_CONFIGS[selectedCampusRef.current].center
-          findAndShowClosest(campusCenter.latitude, campusCenter.longitude)
+          const activeCampus = selectedCampusRef.current
+          const campusCenter = CAMPUS_CONFIGS[activeCampus].center
+          findAndShowClosest(campusCenter.latitude, campusCenter.longitude, activeCampus)
         },
         { enableHighAccuracy: true, timeout: 5000 },
       )
     } else {
-      const campusCenter = CAMPUS_CONFIGS[selectedCampusRef.current].center
-      findAndShowClosest(campusCenter.latitude, campusCenter.longitude)
+      const activeCampus = selectedCampusRef.current
+      const campusCenter = CAMPUS_CONFIGS[activeCampus].center
+      findAndShowClosest(campusCenter.latitude, campusCenter.longitude, activeCampus)
     }
   }
 
