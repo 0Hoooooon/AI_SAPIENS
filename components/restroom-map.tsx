@@ -486,10 +486,8 @@ export function RestroomMap() {
           ? '<span style="color: #2563eb; font-weight: 600;">장애인용 화장실 있음</span>'
           : '<span style="color: #dc2626; font-weight: 600;">장애인용 화장실 없음</span>'
 
-      if (restroom.gender === 'female' || floor.sanitaryPad !== undefined) {
-        sanitaryPadSpan.innerHTML = floor.sanitaryPad
-          ? '<span style="color: #ec4899; font-weight: 600;">양심생리대 있음</span>'
-          : '<span style="color: #94a3b8; font-weight: 500;">양심생리대 없음</span>'
+      if (floor.sanitaryPad) {
+        sanitaryPadSpan.innerHTML = '<span style="color: #16a34a; font-weight: 600;">양심생리대 있음</span>'
         if (!line4.parentElement) {
           container.appendChild(line4)
         }
@@ -1078,8 +1076,8 @@ export function RestroomMap() {
                           {hasSanitaryPad && (
                             <>
                               <span className="text-muted-foreground/40">•</span>
-                              <span className="flex items-center gap-1 font-semibold text-pink-600">
-                                <Check className="size-3.5 stroke-[2.5] text-pink-600" aria-hidden="true" /> 양심생리대 있음
+                              <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                                <Check className="size-3.5 stroke-[2.5] text-emerald-600" aria-hidden="true" /> 양심생리대 있음
                               </span>
                             </>
                           )}
